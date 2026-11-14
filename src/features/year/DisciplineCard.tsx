@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { annualResult, branchOf, overrideKey, testsFor } from '../../domain/averages';
+import { annualResult, branchOf, isComposite, overrideKey, testsFor } from '../../domain/averages';
 import { neededGrade } from '../../domain/projection';
-import type { Discipline, SchoolYear, Semester } from '../../domain/types';
-import { useStore } from '../../store/store';
+import type { CompositeRounding, Discipline, SchoolYear, Semester } from '../../domain/types';
+import { newId, useStore } from '../../store/store';
 import { fmt, isValidGrade, parseNumber } from '../../ui/format';
 import { GradeBadge, GradeField } from '../../ui/GradeField';
+import { CompositeRows, ROUNDING_LABELS } from './CompositeRows';
 
 interface Props {
   profileId: string;
@@ -21,6 +22,8 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
   const deleteTest = useStore((s) => s.deleteTest);
   const setOverride = useStore((s) => s.setOverride);
 
+  const [composite, setComposite] = useState(false);
+  const [rounding, setRounding] = useState<CompositeRounding>('tenth');
   const [grade, setGrade] = useState('');
   const [weight, setWeight] = useState('1');
   const [label, setLabel] = useState('');
@@ -35,7 +38,9 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
 
   // The annual grade uses every test of the year, so the projection does too.
   const yearTests = testsFor(year, discipline.id);
-  const projectionTests = discipline.branches ? yearTests.filter((t) => branchOf(discipline, t) === branchId) : yearTests;
+  const projectionTests = discipline.branches
+    ? yearTests.filter((t) => branchOf(discipline, t) === branchId)
+    : yearTests;
   const nextWeight = parseNumber(weight);
   const projection = neededGrade(projectionTests, target, nextWeight && nextWeight > 0 ? nextWeight : 1);
 
@@ -43,16 +48,22 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
     e.preventDefault();
     const g = parseNumber(grade);
     const w = parseNumber(weight);
-    if (!isValidGrade(g)) return setError('La note doit être entre 1 et 6.');
+    // A composed grade may be created empty; its first sub-grade is optional.
+    if (!(composite && g === undefined) && !isValidGrade(g)) return setError('La note doit être entre 1 et 6.');
     if (w === undefined || Number.isNaN(w) || w <= 0) return setError('Le poids doit être positif.');
+    const date = new Date().toISOString().slice(0, 10);
     addTest(profileId, year.id, {
       disciplineId: discipline.id,
       branchId,
       semester,
-      grade: g,
+      grade: composite ? 0 : (g as number),
       weight: w,
       label: label.trim() || undefined,
-      date: new Date().toISOString().slice(0, 10),
+      date,
+      ...(composite && {
+        parts: g === undefined ? [] : [{ id: newId(), grade: g, semester, date }],
+        rounding,
+      }),
     });
     setGrade('');
     setLabel('');
@@ -102,50 +113,69 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
               </tr>
             </thead>
             <tbody>
-              {tests.map((t) => (
-                <tr key={t.id}>
-                  <td>
-                    {t.label || <span className="muted">{t.date ?? 'Test'}</span>}
-                    {discipline.branches && <small className="muted"> · {branchName(branchOf(discipline, t))}</small>}
-                  </td>
-                  <td>
-                    <GradeField
-                      label="Note"
-                      value={t.grade}
-                      onCommit={(v) => v !== null && updateTest(profileId, year.id, t.id, { grade: v })}
-                    />
-                  </td>
-                  <td>
-                    <GradeField
-                      label="Poids"
-                      value={t.weight}
-                      min={0.01}
-                      max={100}
-                      onCommit={(v) => v !== null && updateTest(profileId, year.id, t.id, { weight: v })}
-                    />
-                  </td>
-                  <td>
-                    <button
-                      className="icon-button"
-                      aria-label="Supprimer le test"
-                      onClick={() => confirm('Supprimer ce test ?') && deleteTest(profileId, year.id, t.id)}
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {tests.map((t) =>
+                isComposite(t) ? (
+                  <CompositeRows
+                    key={t.id}
+                    profileId={profileId}
+                    yearId={year.id}
+                    test={t}
+                    semester={semester}
+                    branchName={discipline.branches ? branchName(branchOf(discipline, t)) : undefined}
+                  />
+                ) : (
+                  <tr key={t.id}>
+                    <td>
+                      {t.label || <span className="muted">{t.date ?? 'Test'}</span>}
+                      {discipline.branches && <small className="muted"> · {branchName(branchOf(discipline, t))}</small>}
+                    </td>
+                    <td>
+                      <GradeField
+                        label="Note"
+                        value={t.grade}
+                        onCommit={(v) => v !== null && updateTest(profileId, year.id, t.id, { grade: v })}
+                      />
+                    </td>
+                    <td>
+                      <GradeField
+                        label="Poids"
+                        value={t.weight}
+                        min={0.01}
+                        max={100}
+                        onCommit={(v) => v !== null && updateTest(profileId, year.id, t.id, { weight: v })}
+                      />
+                    </td>
+                    <td>
+                      <button
+                        className="icon-button"
+                        aria-label="Supprimer le test"
+                        onClick={() => confirm('Supprimer ce test ?') && deleteTest(profileId, year.id, t.id)}
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
         ) : (
           <p className="muted">Aucun test ce semestre.</p>
         )}
 
+        <div className="segmented kind-switch">
+          {[false, true].map((c) => (
+            <label key={String(c)} className={composite === c ? 'active' : ''}>
+              <input type="radio" checked={composite === c} onChange={() => setComposite(c)} />
+              {c ? 'Note composée' : 'Note simple'}
+            </label>
+          ))}
+        </div>
         <form className="add-test" onSubmit={submit}>
           <input
             aria-label="Nouvelle note"
             inputMode="decimal"
-            placeholder="Note"
+            placeholder={composite ? '1re note' : 'Note'}
             value={grade}
             onChange={(e) => setGrade(e.target.value)}
           />
@@ -157,7 +187,25 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
             onChange={(e) => setWeight(e.target.value)}
             className="narrow"
           />
-          <input aria-label="Libellé" placeholder="Libellé (optionnel)" value={label} onChange={(e) => setLabel(e.target.value)} />
+          <input
+            aria-label="Libellé"
+            placeholder={composite ? 'Libellé (ex. Vocabulaire)' : 'Libellé (optionnel)'}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          {composite && (
+            <select
+              aria-label="Arrondi"
+              value={rounding}
+              onChange={(e) => setRounding(e.target.value as CompositeRounding)}
+            >
+              {(Object.keys(ROUNDING_LABELS) as CompositeRounding[]).map((r) => (
+                <option key={r} value={r}>
+                  Arrondi {ROUNDING_LABELS[r]}
+                </option>
+              ))}
+            </select>
+          )}
           {discipline.branches && (
             <select aria-label="Branche" value={branchId} onChange={(e) => setBranchId(e.target.value)}>
               {discipline.branches.map((b) => (

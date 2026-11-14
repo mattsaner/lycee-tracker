@@ -585,3 +585,58 @@ th {
     font-size: 1.3rem;
   }
 }
+
+.kind-switch {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+}
+.kind-switch label {
+  padding: 0.3rem 0.75rem;
+}
+
+.composite-row td {
+  border-bottom: none;
+}
+.parts-row td {
+  padding-top: 0;
+}
+.parts {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 0.75rem;
+  border-left: 3px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+}
+.parts li {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+.parts li.other-semester {
+  opacity: 0.6;
+}
+.parts .icon-button {
+  padding: 0.1rem 0.25rem;
+  font-size: 0.85rem;
+}
+.grade-field.small {
+  width: 3.4rem;
+  padding: 0.25rem 0.35rem;
+}
+.add-part {
+  display: flex;
+  gap: 0.25rem;
+}
+.rounding {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0 0.75rem;
+}
+.rounding select {
+  padding: 0.15rem 0.3rem;
+  font-size: 0.85rem;
+}

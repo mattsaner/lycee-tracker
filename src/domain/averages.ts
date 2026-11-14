@@ -16,8 +16,43 @@ export function weightedMean(items: { value: number; weight: number }[]): number
   return items.reduce((s, i) => s + i.value * i.weight, 0) / total;
 }
 
-export function testsMean(tests: Test[]): number | null {
-  return weightedMean(tests.map((t) => ({ value: t.grade, weight: t.weight })));
+/** Rounds to a step (0.1, 0.25…), halves going up. */
+export function roundTo(x: number, step: number): number {
+  return Number((Math.round(x / step + EPS) * step).toFixed(2));
+}
+
+const ROUNDING_STEP = { tenth: 0.1, quarter: 0.25 } as const;
+
+export const isComposite = (t: Test): boolean => t.parts !== undefined;
+
+/**
+ * Value of a composed grade: equal-weight mean of its sub-grades (of one semester, or of the
+ * whole year when semester is omitted), rounded as configured. Null without sub-grades.
+ */
+export function compositeValue(t: Test, semester?: Semester): number | null {
+  const parts = (t.parts ?? []).filter((p) => semester === undefined || p.semester === semester);
+  if (!parts.length) return null;
+  const mean = parts.reduce((s, p) => s + p.grade, 0) / parts.length;
+  const rounding = t.rounding ?? 'tenth';
+  return rounding === 'none' ? mean : roundTo(mean, ROUNDING_STEP[rounding]);
+}
+
+/** Value a test contributes to a period (a semester, or the whole year when omitted). */
+export function testValue(t: Test, semester?: Semester): number | null {
+  if (isComposite(t)) return compositeValue(t, semester);
+  return semester === undefined || t.semester === semester ? t.grade : null;
+}
+
+/** Tests as weighted values for a period; tests without a value in that period are left out. */
+export function weightedValues(tests: Test[], semester?: Semester): { value: number; weight: number }[] {
+  return tests.flatMap((t) => {
+    const value = testValue(t, semester);
+    return value === null ? [] : [{ value, weight: t.weight }];
+  });
+}
+
+export function testsMean(tests: Test[], semester?: Semester): number | null {
+  return weightedMean(weightedValues(tests, semester));
 }
 
 export interface BranchResult {
@@ -39,9 +74,16 @@ export interface PeriodResult {
 /** Annual bulletin grade entered by the student, keyed by disciplineId. */
 export const overrideKey = (disciplineId: string) => disciplineId;
 
-/** Tests of a discipline for one semester, or for the whole year when semester is omitted. */
+/**
+ * Tests of a discipline for one semester, or for the whole year when semester is omitted.
+ * A composed grade belongs to a semester when it was created in it or has sub-grades in it.
+ */
 export function testsFor(year: SchoolYear, disciplineId: string, semester?: Semester): Test[] {
-  return year.tests.filter((t) => t.disciplineId === disciplineId && (semester === undefined || t.semester === semester));
+  return year.tests.filter(
+    (t) =>
+      t.disciplineId === disciplineId &&
+      (semester === undefined || t.semester === semester || !!t.parts?.some((p) => p.semester === semester)),
+  );
 }
 
 /** Tests without a known branch go to the first branch. */
@@ -51,17 +93,17 @@ export function branchOf(discipline: Discipline, test: Test): string | undefined
   return branches.some((b) => b.id === test.branchId) ? test.branchId : branches[0].id;
 }
 
-function periodResult(discipline: Discipline, tests: Test[], override?: number): PeriodResult {
+function periodResult(discipline: Discipline, tests: Test[], semester?: Semester, override?: number): PeriodResult {
   const overridden = override !== undefined;
 
   if (!discipline.branches?.length) {
-    const raw = testsMean(tests);
+    const raw = testsMean(tests, semester);
     return { raw, official: overridden ? override : raw === null ? null : roundHalf(raw), overridden };
   }
 
   // Multi-branch discipline: half-point grade per branch, then mean weighted by lessons (art. 29 al. 4).
   const branches: BranchResult[] = discipline.branches.map((b) => {
-    const raw = testsMean(tests.filter((t) => branchOf(discipline, t) === b.id));
+    const raw = testsMean(tests.filter((t) => branchOf(discipline, t) === b.id), semester);
     return { id: b.id, name: b.name, raw, official: raw === null ? null : roundHalf(raw) };
   });
   const raw = weightedMean(
@@ -80,7 +122,7 @@ function periodResult(discipline: Discipline, tests: Test[], override?: number):
 
 /** Semester average: for information only, the annual grade uses every test of the year. */
 export function semesterResult(discipline: Discipline, year: SchoolYear, semester: Semester): PeriodResult {
-  return periodResult(discipline, testsFor(year, discipline.id, semester));
+  return periodResult(discipline, testsFor(year, discipline.id, semester), semester);
 }
 
 export interface AnnualResult extends PeriodResult {
@@ -94,7 +136,7 @@ export interface AnnualResult extends PeriodResult {
 
 /** Annual grade: weighted average of all the tests of the year, rounded to the half point. */
 export function annualResult(discipline: Discipline, year: SchoolYear): AnnualResult {
-  const year_ = periodResult(discipline, testsFor(year, discipline.id), year.overrides[overrideKey(discipline.id)]);
+  const year_ = periodResult(discipline, testsFor(year, discipline.id), undefined, year.overrides[overrideKey(discipline.id)]);
   const s1 = semesterResult(discipline, year, 1);
   const s2 = semesterResult(discipline, year, 2);
   return {

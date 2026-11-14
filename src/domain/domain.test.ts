@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { disciplinesFor, lastLevelTaught } from '../data/curriculum';
-import { annualResult, roundHalf, semesterResult } from './averages';
+import { annualResult, compositeValue, roundHalf, roundTo, semesterResult } from './averages';
 import { allowedOc, allowedOs, normalizeChoices, validateChoices } from './choices';
 import { evaluateMaturite, maturiteGrade } from './maturite';
 import { evaluatePromotion } from './promotion';
 import { neededGrade } from './projection';
 import { checkRules } from './rules';
-import type { Choices, Profile, SchoolYear, Semester, Test } from './types';
+import type { Choices, CompositeRounding, Profile, SchoolYear, Semester, Test } from './types';
 
 const choices: Choices = { track: 'standard', l2: 'allemand', l3: 'anglais', arts: 'musique', os: 'bc', oc: 'histoire' };
 
@@ -246,5 +246,58 @@ describe('neededGrade', () => {
     expect(neededGrade([test('f', 6), test('f', 6)], 4).status).toBe('secured');
     expect(neededGrade([test('f', 2), test('f', 2)], 5).status).toBe('impossible');
     expect(neededGrade([], 4)).toEqual({ status: 'reachable', needed: 3.8 });
+  });
+});
+
+describe('composed grades', () => {
+  const francais = disciplinesFor(choices, 1).find((d) => d.id === 'francais')!;
+  const composed = (parts: [number, Semester][], weight = 1, rounding?: CompositeRounding): Test =>
+    test('francais', 0, parts[0]?.[1] ?? 1, {
+      weight,
+      rounding,
+      parts: parts.map(([grade, semester], i) => ({ id: `p${i}`, grade, semester })),
+    });
+
+  it('rounds to the tenth or the quarter, halves going up', () => {
+    expect(roundTo(5.1666, 0.1)).toBe(5.2);
+    expect(roundTo(5.15, 0.1)).toBe(5.2);
+    expect(roundTo(5.1666, 0.25)).toBe(5.25);
+    expect(roundTo(5.125, 0.25)).toBe(5.25);
+    expect(roundTo(5.1, 0.25)).toBe(5);
+  });
+
+  it('is the equal-weight mean of its sub-grades, rounded as configured', () => {
+    const parts: [number, Semester][] = [[5, 1], [4.5, 1], [6, 1]];
+    expect(compositeValue(composed(parts))).toBe(5.2); // tenth by default
+    expect(compositeValue(composed(parts, 1, 'quarter'))).toBe(5.25);
+    expect(compositeValue(composed(parts, 1, 'none'))).toBeCloseTo(5.1667, 3);
+    expect(compositeValue(composed([]))).toBeNull();
+  });
+
+  it('counts once in the year average with its own weight', () => {
+    // Composed 5, 4.5, 6 → 5.2 (weight 1); test 4 (weight 2) → (5.2 + 8) / 3 = 4.4
+    const y = year(1, [composed([[5, 1], [4.5, 1], [6, 1]]), test('francais', 4, 1, { weight: 2 })]);
+    const a = annualResult(francais, y);
+    expect(a.raw).toBeCloseTo(4.4);
+    expect(a.value).toBe(4.5);
+  });
+
+  it('spans the year: all sub-grades for the year, each semester for its info average', () => {
+    const y = year(1, [composed([[4, 1], [5, 2], [6, 2]]), test('francais', 3, 1)]);
+    // year: composed (4 + 5 + 6) / 3 = 5 → (5 + 3) / 2 = 4
+    expect(annualResult(francais, y).raw).toBe(4);
+    // S1: composed 4, test 3 → 3.5; S2: composed 5.5 only
+    expect(semesterResult(francais, y, 1).raw).toBe(3.5);
+    expect(semesterResult(francais, y, 2).raw).toBe(5.5);
+  });
+
+  it('ignores an empty composed grade', () => {
+    const y = year(1, [composed([]), test('francais', 5, 1)]);
+    expect(annualResult(francais, y).raw).toBe(5);
+  });
+
+  it('is taken into account by the projection', () => {
+    // composed 3.5 (weight 1) → (3.5 + x) / 2 ≥ 3.75 → x ≥ 4
+    expect(neededGrade([composed([[3, 1], [4, 1]])], 4)).toEqual({ status: 'reachable', needed: 4 });
   });
 });

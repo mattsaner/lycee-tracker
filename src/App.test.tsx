@@ -47,8 +47,27 @@ describe('App', () => {
     addTest(card('Chimie'), '7');
     expect(within(card('Chimie')).getByText('La note doit être entre 1 et 6.')).toBeTruthy();
 
+    // Composed grade: 5, 4.5, 6 → 5.2, weight 1
+    const allemand = card('Allemand');
+    fireEvent.click(within(allemand).getByText('Note composée'));
+    fireEvent.change(within(allemand).getByLabelText('Libellé'), { target: { value: 'Vocabulaire' } });
+    addTest(allemand, '5');
+    for (const g of ['4.5', '6']) {
+      fireEvent.change(within(allemand).getByLabelText('Nouvelle sous-note'), { target: { value: g } });
+      fireEvent.click(within(allemand).getByRole('button', { name: 'Ajouter la sous-note' }));
+    }
+    expect(within(allemand).getByText(/Composée · 3 notes/)).toBeTruthy();
+    expect(within(allemand).getByText('5.2', { selector: '.badge' })).toBeTruthy();
+    // Annual grade 5.2 → 5
+    expect(within(allemand).getByText('5', { selector: 'summary .badge' })).toBeTruthy();
+
     fireEvent.click(screen.getByText('Bilan & promotion'));
-    // surplus 1 (français 5) < 2 × deficit 2 (maths 3) → fails
+    // surplus 2 (français 5, allemand 5) = 2 × deficit 1 (maths 3) → passes, but chimie has no grade
+    expect(await screen.findByText('Promotion obtenue')).toBeTruthy();
+    fireEvent.click(screen.getByText('Notes'));
+    addTest(card('Chimie'), '3.5');
+    fireEvent.click(screen.getByText('Bilan & promotion'));
+    // surplus 2 < 2 × deficit 1.5 = 3 → fails
     expect(await screen.findByText('Conditions de promotion non remplies')).toBeTruthy();
     expect(screen.getByText('provisoire')).toBeTruthy();
 
@@ -57,6 +76,6 @@ describe('App', () => {
 
     // Data persisted to localStorage
     const saved = JSON.parse(localStorage.getItem('lycee-tracker')!);
-    expect(saved.state.profiles[0].years[0].tests).toHaveLength(3);
+    expect(saved.state.profiles[0].years[0].tests).toHaveLength(5);
   });
 });

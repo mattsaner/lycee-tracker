@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { overrideKey } from '../domain/averages';
-import type { Choices, Level, Profile, SchoolYear, Test } from '../domain/types';
+import type { Choices, Level, Profile, SchoolYear, SubGrade, Test } from '../domain/types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -29,6 +29,9 @@ interface State {
   addTest: (profileId: string, yearId: string, test: Omit<Test, 'id'>) => void;
   updateTest: (profileId: string, yearId: string, testId: string, patch: Partial<Omit<Test, 'id'>>) => void;
   deleteTest: (profileId: string, yearId: string, testId: string) => void;
+  addPart: (profileId: string, yearId: string, testId: string, part: Omit<SubGrade, 'id'>) => void;
+  updatePart: (profileId: string, yearId: string, testId: string, partId: string, patch: Partial<Omit<SubGrade, 'id'>>) => void;
+  deletePart: (profileId: string, yearId: string, testId: string, partId: string) => void;
   setOverride: (profileId: string, yearId: string, disciplineId: string, grade: number | null) => void;
   setExam: (profileId: string, disciplineId: string, grade: number | null) => void;
   setSchoolOverride: (profileId: string, disciplineId: string, grade: number | null) => void;
@@ -50,6 +53,11 @@ export const useStore = create<State>()(
         set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? fn(p) : p)) }));
       const mapYear = (profileId: string, yearId: string, fn: (y: SchoolYear) => SchoolYear) =>
         mapProfile(profileId, (p) => ({ ...p, years: p.years.map((y) => (y.id === yearId ? fn(y) : y)) }));
+      const mapParts = (profileId: string, yearId: string, testId: string, fn: (parts: SubGrade[]) => SubGrade[]) =>
+        mapYear(profileId, yearId, (y) => ({
+          ...y,
+          tests: y.tests.map((t) => (t.id === testId ? { ...t, parts: fn(t.parts ?? []) } : t)),
+        }));
 
       return {
         profiles: [],
@@ -87,6 +95,13 @@ export const useStore = create<State>()(
           })),
         deleteTest: (profileId, yearId, testId) =>
           mapYear(profileId, yearId, (y) => ({ ...y, tests: y.tests.filter((t) => t.id !== testId) })),
+
+        addPart: (profileId, yearId, testId, part) =>
+          mapParts(profileId, yearId, testId, (parts) => [...parts, { ...part, id: newId() }]),
+        updatePart: (profileId, yearId, testId, partId, patch) =>
+          mapParts(profileId, yearId, testId, (parts) => parts.map((p) => (p.id === partId ? { ...p, ...patch } : p))),
+        deletePart: (profileId, yearId, testId, partId) =>
+          mapParts(profileId, yearId, testId, (parts) => parts.filter((p) => p.id !== partId)),
 
         setOverride: (profileId, yearId, disciplineId, grade) =>
           mapYear(profileId, yearId, (y) => ({

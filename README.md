@@ -8,6 +8,7 @@ Suivi des notes pour les élèves du **Lycée cantonal de Porrentruy** (maturit�
 
 - **Profil** : filière (maturité ou bilingue FR-DE), langue 2, langue 3, discipline artistique, option spécifique (OS) et option complémentaire (OC). Les règles de choix du lycée sont appliquées (incompatibilités OS/OC, langues, etc.).
 - **Notes de tests** : note de 1 à 6 au dixième ou au quart de point, poids 1 par défaut et modifiable.
+- **Notes composées** : plusieurs petites notes (vocabulaire, quiz…) qui forment une seule note : moyenne simple des sous-notes, arrondie au dixième, au quart ou non arrondie, puis comptée une fois avec son propre poids. Les sous-notes peuvent s'étaler sur toute l'année.
 - **Moyennes** : la note de l’année est la moyenne pondérée de **tous les tests de l’année**, arrondie au demi-point (x.25 et x.75 vers le haut) ; les moyennes S1 et S2 sont indicatives. Pour les OS à plusieurs branches (biologie-chimie, physique-applications des maths), moyenne des branches pondérée par la dotation. La note annuelle réelle du bulletin peut être saisie et remplace la note calculée.
 - **Note nécessaire** : la note à obtenir au prochain test pour atteindre 4, 4.5, 5…
 - **Promotion** : double compensation, maximum 4 notes insuffisantes, aucune note sous 2, avec le détail des points.

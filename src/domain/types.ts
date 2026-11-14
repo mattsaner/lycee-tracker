@@ -42,16 +42,34 @@ export interface Choices {
   bilingualExam?: BilingualExam;
 }
 
+export type CompositeRounding = 'tenth' | 'quarter' | 'none';
+
+/** One of the grades making up a composed grade. */
+export interface SubGrade {
+  id: string;
+  grade: number;
+  semester: Semester;
+  date?: string;
+}
+
 export interface Test {
   id: string;
   disciplineId: string;
   /** Only for disciplines made of several branches (OS PM / BC). */
   branchId?: string;
+  /** Semester of a simple grade; for a composed grade, the semester it was created in. */
   semester: Semester;
+  /** Grade of a simple test; ignored for a composed grade. */
   grade: number;
   weight: number;
   label?: string;
   date?: string;
+  /**
+   * Composed grade ("note composée"): equal-weight mean of the sub-grades, which may span
+   * both semesters, counted once with `weight`.
+   */
+  parts?: SubGrade[];
+  rounding?: CompositeRounding;
 }
 
 export interface SchoolYear {
