@@ -1,0 +1,23 @@
+# Personal data — never commit grades
+data/
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+*.json.local
+
+# Secrets
+.env
+.env.*
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+
+# Dependencies / builds
+node_modules/
+dist/
+build/
+__pycache__/
+.venv/
