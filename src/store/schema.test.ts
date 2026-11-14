@@ -91,6 +91,15 @@ describe('data format', () => {
     expect(warnings.join(' ')).toMatch(/1 profil\(s\) illisible/);
   });
 
+  it('replaces unsafe or duplicate ids, since ids end up in URLs', () => {
+    const profile = (id: string) => ({ id, name: 'X', choices: {}, years: [], maturite: {} });
+    const { profiles } = sanitizeProfiles([profile('\\\\evil.example/x'), profile('ok-1'), profile('ok-1')]);
+    expect(profiles[0].id).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(profiles[0].id).not.toContain('evil');
+    expect(profiles[1].id).toBe('ok-1');
+    expect(profiles[2].id).not.toBe('ok-1');
+  });
+
   it('rejects files it cannot understand', () => {
     expect(() => parseBackup('not json')).toThrow(/JSON/);
     expect(() => parseBackup('{"app":"other"}')).toThrow(/pas une sauvegarde/);

@@ -11,6 +11,9 @@ const FREQUENCIES: [number, string][] = [
   [0, 'Jamais'],
 ];
 
+/** A real backup weighs a few kilobytes; this only protects against a wrong, huge file. */
+const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
+
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -26,6 +29,10 @@ export function Backup() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      setMessage({ ok: false, text: 'Fichier trop volumineux pour être une sauvegarde Lycée Tracker.' });
+      return;
+    }
     try {
       const { profiles: incoming, warnings } = parseBackup(await file.text());
       const replaced = incoming.filter((p) => profiles.some((q) => q.id === p.id));

@@ -28,7 +28,15 @@ type Obj = Record<string, unknown>;
 const isObject = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isGrade = (v: unknown): v is number => typeof v === 'number' && v >= 1 && v <= 6;
 const isSemester = (v: unknown): v is Semester => v === 1 || v === 2;
-const optString = (v: unknown) => (typeof v === 'string' ? v : undefined);
+const optString = (v: unknown, max = 200) => (typeof v === 'string' ? v.slice(0, max) : undefined);
+/** Ids already used in the data being loaded; duplicates get a fresh id. */
+let seenIds = new Set<string>();
+/** Ids end up in URLs: only plain, unique ids are kept, anything else gets a fresh id. */
+function safeId(v: unknown): string {
+  const id = typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) && !seenIds.has(v) ? v : newId();
+  seenIds.add(id);
+  return id;
+}
 
 function gradeRecord(v: unknown): Record<string, number> {
   if (!isObject(v)) return {};
@@ -70,7 +78,7 @@ function sanitizeChoices(v: unknown, warn: (m: string) => void): Choices {
 
 function sanitizePart(v: unknown): SubGrade | null {
   if (!isObject(v) || !isGrade(v.grade) || !isSemester(v.semester)) return null;
-  return { ...v, id: optString(v.id) ?? newId(), grade: v.grade, semester: v.semester, date: optString(v.date) };
+  return { ...v, id: safeId(v.id), grade: v.grade, semester: v.semester, date: optString(v.date) };
 }
 
 function sanitizeTest(v: unknown): Test | null {
@@ -78,7 +86,7 @@ function sanitizeTest(v: unknown): Test | null {
   const weight = typeof v.weight === 'number' && v.weight > 0 ? v.weight : 1;
   const base = {
     ...v,
-    id: optString(v.id) ?? newId(),
+    id: safeId(v.id),
     disciplineId: v.disciplineId,
     branchId: optString(v.branchId),
     semester: v.semester,
@@ -103,7 +111,7 @@ function sanitizeYear(v: unknown, warn: (m: string) => void): SchoolYear | null 
   if (tests.length < rawTests.length) warn(`${rawTests.length - tests.length} note(s) illisible(s) ignorée(s).`);
   return {
     ...v,
-    id: optString(v.id) ?? newId(),
+    id: safeId(v.id),
     level: v.level as Level,
     label: optString(v.label) ?? '',
     tests,
@@ -112,7 +120,7 @@ function sanitizeYear(v: unknown, warn: (m: string) => void): SchoolYear | null 
 }
 
 function sanitizeProfile(v: unknown, warnings: string[]): Profile | null {
-  if (!isObject(v) || typeof v.name !== 'string') return null;
+  if (!isObject(v) || typeof v.name !== 'string' || !v.name.trim()) return null;
   const warn = (m: string) => warnings.push(`${v.name} : ${m}`);
   const rawYears = Array.isArray(v.years) ? v.years : [];
   const years = rawYears.map((y) => sanitizeYear(y, warn)).filter((y): y is SchoolYear => y !== null);
@@ -120,8 +128,8 @@ function sanitizeProfile(v: unknown, warnings: string[]): Profile | null {
   const m = isObject(v.maturite) ? v.maturite : {};
   return {
     ...v,
-    id: optString(v.id) ?? newId(),
-    name: v.name,
+    id: safeId(v.id),
+    name: v.name.slice(0, 60),
     choices: sanitizeChoices(v.choices, warn),
     years,
     maturite: {
@@ -141,6 +149,7 @@ function sanitizeProfile(v: unknown, warnings: string[]): Profile | null {
 export function sanitizeProfiles(raw: unknown): LoadResult {
   if (!Array.isArray(raw)) throw new Error('Les données ne contiennent pas de liste de profils.');
   const warnings: string[] = [];
+  seenIds = new Set();
   const profiles = raw.map((p) => sanitizeProfile(p, warnings)).filter((p): p is Profile => p !== null);
   if (profiles.length < raw.length) warnings.push(`${raw.length - profiles.length} profil(s) illisible(s) ignoré(s).`);
   return { profiles, warnings };
