@@ -1,4 +1,4 @@
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { CORE_MINIMUM, evaluateMaturite, TM_ID } from '../../domain/maturite';
 import { useStore } from '../../store/store';
 import { fmt } from '../../ui/format';

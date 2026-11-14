@@ -1,4 +1,4 @@
-import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
+import { HashRouter, Link, Navigate, Route, Routes } from 'react-router';
 import { Backup } from './features/backup/Backup';
 import { BackupReminder } from './features/backup/BackupReminder';
 import { Home } from './features/home/Home';
@@ -11,7 +11,7 @@ import { YearNotes } from './features/year/YearNotes';
 
 export function App() {
   return (
-    <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <HashRouter>
       <header className="app-header">
         <Link to="/" className="brand">
           📘 Lycée Tracker

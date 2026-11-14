@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { downloadBackup } from '../../store/backup';
 import { flushVault, reminderDueDays, useStore } from '../../store/store';
 

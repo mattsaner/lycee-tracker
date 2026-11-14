@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { disciplinesFor } from '../../data/curriculum';
 import type { Semester } from '../../domain/types';
 import type { ProfileContext } from '../profile/ProfileLayout';
