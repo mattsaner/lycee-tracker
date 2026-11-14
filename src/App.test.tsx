@@ -26,7 +26,7 @@ describe('App', () => {
     render(<App />);
     fireEvent.click(screen.getByText('+ Nouveau profil'));
     fireEvent.change(screen.getByLabelText('Prénom ou pseudo'), { target: { value: 'Léa' } });
-    fireEvent.change(screen.getByLabelText('Option spécifique (OS)'), { target: { value: 'bc' } });
+    fireEvent.change(screen.getByLabelText(/^Option spécifique \(OS\)/), { target: { value: 'bc' } });
     fireEvent.click(screen.getByRole('button', { name: 'Créer le profil' }));
 
     expect(await screen.findByRole('heading', { name: 'Léa' })).toBeTruthy();
@@ -99,4 +99,20 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Plus tard' }));
     expect(screen.queryByText(/ne sont pas sauvegardées/)).toBeNull();
   });
+
+  it('lists every OS and explains the ones excluded by the language choices', () => {
+    window.location.hash = '#/nouveau';
+    render(<App />);
+    const os = screen.getByLabelText(/^Option spécifique \(OS\)/) as HTMLSelectElement;
+    const anglais = within(os).getByRole('option', { name: /Anglais/ }) as HTMLOptionElement;
+    expect(os.options).toHaveLength(8);
+    expect(anglais.disabled).toBe(true);
+    expect(anglais.textContent).toMatch(/déjà en langue 3/);
+
+    fireEvent.change(screen.getByLabelText('Langue 3'), { target: { value: 'latin' } });
+    expect((within(os).getByRole('option', { name: /Anglais/ }) as HTMLOptionElement).disabled).toBe(false);
+    fireEvent.change(os, { target: { value: 'anglais' } });
+    expect(os.value).toBe('anglais');
+  });
 });
+

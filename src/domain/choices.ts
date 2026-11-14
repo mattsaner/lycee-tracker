@@ -13,20 +13,34 @@ const OC_EXCLUDED_BY_OS: Partial<Record<OsId, OcId[]>> = {
   theatre: ['theatre', 'arts-visuels', 'musique', 'sport'],
 };
 
+/** Why a langue 3 cannot be chosen, or null when it can. */
+export function l3BlockReason(c: Pick<Choices, 'l2'>, l3: L3Id): string | null {
+  return l3 === c.l2 ? 'déjà en langue 2' : null;
+}
+
+/** Why an option spécifique cannot be chosen, or null when it can. */
+export function osBlockReason(c: Pick<Choices, 'l2' | 'l3'>, os: OsId): string | null {
+  const lang = LANGUAGE_OS[os];
+  if (lang && lang === c.l3) return 'déjà en langue 3';
+  if (lang && lang === c.l2) return 'déjà en langue 2';
+  return null;
+}
+
+/** Why an option complémentaire cannot be chosen, or null when it can. */
+export function ocBlockReason(c: Pick<Choices, 'os'>, oc: OcId): string | null {
+  return OC_EXCLUDED_BY_OS[c.os]?.includes(oc) ? 'incompatible avec ton OS' : null;
+}
+
 export function allowedL3(c: Pick<Choices, 'l2'>): L3Id[] {
-  return (Object.keys(L3_LABELS) as L3Id[]).filter((l3) => l3 !== c.l2);
+  return (Object.keys(L3_LABELS) as L3Id[]).filter((l3) => !l3BlockReason(c, l3));
 }
 
 export function allowedOs(c: Pick<Choices, 'l2' | 'l3'>): OsId[] {
-  return (Object.keys(OS_LABELS) as OsId[]).filter((os) => {
-    const lang = LANGUAGE_OS[os];
-    return !lang || (lang !== c.l2 && lang !== c.l3);
-  });
+  return (Object.keys(OS_LABELS) as OsId[]).filter((os) => !osBlockReason(c, os));
 }
 
 export function allowedOc(c: Pick<Choices, 'os'>): OcId[] {
-  const excluded = OC_EXCLUDED_BY_OS[c.os] ?? [];
-  return (Object.keys(OC_LABELS) as OcId[]).filter((oc) => !excluded.includes(oc));
+  return (Object.keys(OC_LABELS) as OcId[]).filter((oc) => !ocBlockReason(c, oc));
 }
 
 export function validateChoices(c: Choices): string[] {

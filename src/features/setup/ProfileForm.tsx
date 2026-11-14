@@ -9,8 +9,8 @@ import {
   OC_LABELS,
   OS_LABELS,
 } from '../../data/curriculum';
-import { allowedL3, allowedOc, allowedOs, normalizeChoices, validateChoices } from '../../domain/choices';
-import type { Choices, Level, OcId } from '../../domain/types';
+import { l3BlockReason, normalizeChoices, ocBlockReason, osBlockReason, validateChoices } from '../../domain/choices';
+import type { Choices, L3Id, Level, OcId, OsId } from '../../domain/types';
 import { currentSchoolYearLabel, useProfile, useStore } from '../../store/store';
 
 const DEFAULT_CHOICES: Choices = {
@@ -28,16 +28,22 @@ function Select<T extends string>(props: {
   labels: Record<T, string>;
   onChange: (v: T) => void;
   hint?: string;
+  /** Options that the rules exclude stay visible but disabled, with the reason. */
+  blockReason?: (v: T) => string | null;
 }) {
   return (
     <label className="field">
       <span>{props.label}</span>
       <select value={props.value} onChange={(e) => props.onChange(e.target.value as T)}>
-        {props.options.map((o) => (
-          <option key={o} value={o}>
-            {props.labels[o]}
-          </option>
-        ))}
+        {props.options.map((o) => {
+          const reason = props.blockReason?.(o);
+          return (
+            <option key={o} value={o} disabled={!!reason}>
+              {props.labels[o]}
+              {reason ? ` (${reason})` : ''}
+            </option>
+          );
+        })}
       </select>
       {props.hint && <small className="muted">{props.hint}</small>}
     </label>
@@ -132,7 +138,8 @@ export function ProfileForm() {
           <Select
             label="Langue 3"
             value={choices.l3}
-            options={allowedL3(choices)}
+            options={Object.keys(L3_LABELS) as L3Id[]}
+            blockReason={(l3) => l3BlockReason(choices, l3)}
             labels={L3_LABELS}
             onChange={(l3) => update({ l3 })}
           />
@@ -152,7 +159,13 @@ export function ProfileForm() {
         <Select
           label="Option spécifique (OS)"
           value={choices.os}
-          options={allowedOs(choices)}
+          options={Object.keys(OS_LABELS) as OsId[]}
+          blockReason={(os) => osBlockReason(choices, os)}
+          hint={
+            osBlockReason(choices, 'anglais') || osBlockReason(choices, 'italien')
+              ? 'Une langue déjà choisie en langue 2 ou 3 ne peut pas être l’OS : change la langue 3 pour la sélectionner.'
+              : undefined
+          }
           labels={OS_LABELS}
           onChange={(os) => update({ os })}
         />
@@ -163,11 +176,15 @@ export function ProfileForm() {
             onChange={(e) => update({ oc: (e.target.value || undefined) as OcId | undefined })}
           >
             <option value="">Pas encore choisie</option>
-            {allowedOc(choices).map((o) => (
-              <option key={o} value={o}>
-                {OC_LABELS[o]}
-              </option>
-            ))}
+            {(Object.keys(OC_LABELS) as OcId[]).map((o) => {
+              const reason = ocBlockReason(choices, o);
+              return (
+                <option key={o} value={o} disabled={!!reason}>
+                  {OC_LABELS[o]}
+                  {reason ? ` (${reason})` : ''}
+                </option>
+              );
+            })}
           </select>
           <small className="muted">Le choix se fait pendant la 1re année ; tu pourras le compléter plus tard.</small>
         </label>
