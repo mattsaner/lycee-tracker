@@ -1,0 +1,51 @@
+{
+  "app": "lycee-tracker",
+  "schemaVersion": 2,
+  "exportedAt": "2026-11-14T18:00:00.000Z",
+  "entries": [
+    {
+      "id": "fixture-profile-1",
+      "name": "Élève test",
+      "createdAt": "2025-08-20T10:00:00.000Z",
+      "sealed": {
+        "v": 1,
+        "kdf": "PBKDF2-SHA256",
+        "iterations": 1000,
+        "salt": "alA9AJi9/bfJSsx0p3rzpw==",
+        "iv": "7NlFQS2K2OcCjlIR",
+        "data": "N1nRkh3PabnfetrisEcgaO0ebo2dW23WL+16PsK6VNRrxWXMxi7UE9qWw+w9UTQz47S2IEY3wPPUGwVNDLiiiSG6Hoqasq5FWZbrhBUYXWCIfaN59+EFrYaUdXso02CvKgX15Tri/iPnGPy/yBS3fvR9xXJ0mCyf8ryoEjMih/MWkCfu8mhvZsjBVfzCwszuaWCRCQLHimCqa5eyRNatm7AvOF7fvJ36+VEA4q1B82Gp5KpoX6S56QQBWGB+6Xa6O2nkjjhTle86LJ9NnoIklPV9G8rlV0eIivGjhizhsOGcVCIlzteBH3jv6UZ1AN3F6gpWLk9Ok0bCooKHAJquuq/9pq/2wevc7fTaKN8DFOcCn1g3BJUa2QDdaVcbVXfdD+isrX0hYa9+uIR0FZyaHDAnNp7OmvWaOp6t7Pwh9FyUnWFaJjD9AGyxGsPzYbnPS6G0L7n549tMKDqvTTNllItWaNVyQpPI/f0uQ8PasxVH5WGzACnc0NFxX4duzo+Ypyzr/t0HpKWny/V/1hyLI9IGj8W1H4Tfrbr5LSLPNn4JHaa0h5cFkuIJAEdD5XnEwiroeoa+peY7FVb2kx8fbAxMX97XkFfswIzw022B7h8I1iY9W/M10Sbn3VbSXtGGeKNxmBpV78xGDhBV5qcAnbMpev7tc1uwqclF/GSvsAVaTbIhStaZhPTGaFVvcbByRYAzdSybdBcva3RFZso+jahAj46uKqdgPDiBrzH9U4xmIw7K6pcNHMX0pAO4+NVF/3JmI/fkF473TOPJ4xZ0UGeY0eo0gkcU0K1EZ1ASOUNzoC8IDFOmEwSNqz4D2itZAkEbYFaQUknwQvqfuM5txrliljlleQxcOA23+N4Kq0bPVrizQqOJAEszCqWepE8lNigLop983p3e2NagH2C3OZhfe6ByoU4UAW1mRQtCwMfWtprlbQjZU/4pPKtY+BkVDiRqE8GOXXUVSEjUElOpdNAao1sLiwuIlu2kfbIBWEVoVaEd4JZhGVHXZ51wIpGJe+56VBBsTE7ifGvvp+hmyJZMdScQAsjTIlzKb27kApVIdGABTP/Vbmjgm8189UCr7lbDGgajDMpVS+FkMwrOSHoQulD+87D/O1GguzdSDMTFbp7HyRtWJCu0cwO19tRnsE7zRzH0dCrTTjzybyK+oPyfKBcxfIJ6l6jQ1GISMyHJClGYE8rUzj2QL5PD9KU4ovpuJYx+UPg7jWKX0xf5cOYtdYOQyjrgC58s0l00VmuItIl1kHwRvWJl+VUK3hsO09faXeCQyZjJWEme5WKzOs19tPqT4KmK9RZ5kLU="
+      }
+    },
+    {
+      "id": "fixture-profile-2",
+      "name": "Élève bilingue",
+      "createdAt": "2026-08-20T10:00:00.000Z",
+      "legacy": {
+        "id": "fixture-profile-2",
+        "name": "Élève bilingue",
+        "choices": {
+          "track": "bilingue",
+          "l2": "allemand",
+          "l3": "latin",
+          "arts": "arts-visuels",
+          "os": "theatre",
+          "bilingualExam": "histoire"
+        },
+        "years": [
+          {
+            "id": "fixture-year-3",
+            "level": 1,
+            "label": "2026-2027",
+            "tests": [],
+            "overrides": {}
+          }
+        ],
+        "maturite": {
+          "exams": {},
+          "schoolOverrides": {}
+        },
+        "createdAt": "2026-08-20T10:00:00.000Z"
+      }
+    }
+  ]
+}

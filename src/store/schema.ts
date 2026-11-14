@@ -10,13 +10,38 @@
  */
 import { ARTS_LABELS, BILINGUAL_EXAM_LABELS, L2_LABELS, L3_LABELS, OC_LABELS, OS_LABELS } from '../data/curriculum';
 import type { Choices, Level, Profile, SchoolYear, Semester, SubGrade, Test } from '../domain/types';
+import { isSealedBox, type SealedBox } from '../crypto/vault';
 import { newId } from './id';
 
-export const SCHEMA_VERSION = 1;
+/**
+ * 1: plain profiles.
+ * 2: profiles stored as vault entries, encrypted with the profile's password (profile content unchanged).
+ */
+export const SCHEMA_VERSION = 2;
 
-/** MIGRATIONS[n] converts the profiles array of version n into version n + 1. */
+/** MIGRATIONS[n] converts the content of profiles of version n into version n + 1. */
 type Migration = (profiles: unknown[]) => unknown[];
-export const MIGRATIONS: Record<number, Migration> = {};
+export const MIGRATIONS: Record<number, Migration> = {
+  1: (profiles) => profiles,
+};
+
+/**
+ * Stored form of a profile. `name` stays readable to list profiles before unlocking; everything
+ * else is in `sealed`. `legacy` holds a profile saved before passwords existed, until one is set.
+ */
+export interface VaultEntry {
+  id: string;
+  name: string;
+  createdAt: string;
+  sealed?: SealedBox;
+  legacy?: Profile;
+}
+
+/** Content encrypted in a sealed box; its version lets the profile be migrated after decryption. */
+export interface SealedPayload {
+  schemaVersion: number;
+  profile: Profile;
+}
 
 export interface LoadResult {
   profiles: Profile[];
@@ -166,4 +191,56 @@ export function loadProfiles(raw: unknown, version: number): LoadResult {
     data = migrate(Array.isArray(data) ? data : []);
   }
   return sanitizeProfiles(data);
+}
+
+export interface EntriesResult {
+  entries: VaultEntry[];
+  warnings: string[];
+}
+
+/**
+ * Loads stored or exported profiles of any version as vault entries.
+ * Version 1 data is a list of plain profiles; they become `legacy` entries that need a password.
+ */
+export function loadEntries(raw: unknown, version: number): EntriesResult {
+  if (version > SCHEMA_VERSION)
+    throw new Error('Ces données proviennent d’une version plus récente de l’application. Recharge la page.');
+  if (version < 2) {
+    const { profiles, warnings } = loadProfiles(raw, version);
+    return {
+      entries: profiles.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, legacy: p })),
+      warnings,
+    };
+  }
+  if (!Array.isArray(raw)) throw new Error('Les données ne contiennent pas de liste de profils.');
+  const warnings: string[] = [];
+  const legacy = raw.filter((e) => isObject(e) && e.legacy !== undefined && !isSealedBox(e.sealed));
+  const repaired = loadProfiles(legacy.map((e) => (e as Obj).legacy), version);
+  warnings.push(...repaired.warnings);
+  seenIds = new Set(repaired.profiles.map((p) => p.id));
+  const entries: VaultEntry[] = [];
+  for (const e of raw) {
+    if (!isObject(e)) continue;
+    if (isSealedBox(e.sealed) && typeof e.name === 'string') {
+      entries.push({
+        id: safeId(e.id),
+        name: e.name.slice(0, 60),
+        createdAt: optString(e.createdAt) ?? new Date().toISOString(),
+        sealed: e.sealed,
+      });
+    }
+  }
+  for (const p of repaired.profiles) entries.push({ id: p.id, name: p.name, createdAt: p.createdAt, legacy: p });
+  const skipped = raw.length - entries.length;
+  if (skipped > 0) warnings.push(`${skipped} profil(s) illisible(s) ignoré(s).`);
+  return { entries, warnings };
+}
+
+/** Reads the content of a decrypted sealed box, migrating it to the current version. */
+export function loadPayload(raw: unknown, entryId: string): Profile {
+  if (!isObject(raw) || typeof raw.schemaVersion !== 'number') throw new Error('Contenu chiffré illisible.');
+  const { profiles } = loadProfiles([raw.profile], raw.schemaVersion);
+  if (!profiles.length) throw new Error('Contenu chiffré illisible.');
+  // The entry id is the reference (it may have been replaced when loading the entry).
+  return { ...profiles[0], id: entryId };
 }

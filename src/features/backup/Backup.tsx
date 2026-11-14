@@ -18,8 +18,8 @@ const fmtDate = (iso: string) =>
   new Date(iso).toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' });
 
 export function Backup() {
-  const profiles = useStore((s) => s.profiles);
-  const importProfiles = useStore((s) => s.importProfiles);
+  const entries = useStore((s) => s.vault);
+  const importEntries = useStore((s) => s.importEntries);
   const backup = useStore((s) => s.backup);
   const setReminderFrequency = useStore((s) => s.setReminderFrequency);
   const exportBackup = useExportBackup();
@@ -34,14 +34,14 @@ export function Backup() {
       return;
     }
     try {
-      const { profiles: incoming, warnings } = parseBackup(await file.text());
-      const replaced = incoming.filter((p) => profiles.some((q) => q.id === p.id));
+      const { entries: incoming, warnings } = parseBackup(await file.text());
+      const replaced = incoming.filter((p) => entries.some((q) => q.id === p.id));
       if (
         replaced.length &&
         !confirm(`Remplacer ${replaced.map((p) => p.name).join(', ')} par la version du fichier ?`)
       )
         return;
-      importProfiles(incoming);
+      importEntries(incoming);
       setMessage({
         ok: true,
         text: [`${incoming.length} profil(s) importé(s).`, ...warnings].join(' '),
@@ -59,8 +59,8 @@ export function Backup() {
         d’appareil, elles sont perdues : exporte un fichier régulièrement, puis importe-le sur l’autre appareil.
       </p>
       <div className="actions">
-        <button className="button primary" onClick={exportBackup} disabled={profiles.length === 0}>
-          Exporter ({profiles.length} profil{profiles.length > 1 ? 's' : ''})
+        <button className="button primary" onClick={exportBackup} disabled={entries.length === 0}>
+          Exporter ({entries.length} profil{entries.length > 1 ? 's' : ''})
         </button>
         <label className="button">
           Importer un fichier…
@@ -90,7 +90,8 @@ export function Backup() {
         </select>
       </label>
       <p className="muted small">
-        Le fichier contient tes notes : ne le publie pas. Un import fusionne les profils (un profil existant portant le
+        Le fichier est chiffré avec le mot de passe de chaque profil : il faudra ce mot de passe pour l’ouvrir après
+        l’import (celui en vigueur au moment de l’export). Un import fusionne les profils (un profil existant portant le
         même identifiant est remplacé).
       </p>
     </section>

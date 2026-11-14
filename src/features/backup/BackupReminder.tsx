@@ -1,12 +1,13 @@
 import { Link } from 'react-router-dom';
 import { downloadBackup } from '../../store/backup';
-import { reminderDueDays, useStore } from '../../store/store';
+import { flushVault, reminderDueDays, useStore } from '../../store/store';
 
-/** Downloads a backup of every profile and records the export. */
-export function useExportBackup(): () => void {
+/** Downloads a backup of every profile (encrypted as stored) and records the export. */
+export function useExportBackup(): () => Promise<void> {
   const markExported = useStore((s) => s.markExported);
-  return () => {
-    downloadBackup(useStore.getState().profiles);
+  return async () => {
+    await flushVault();
+    downloadBackup(useStore.getState().vault);
     markExported();
   };
 }
@@ -14,7 +15,7 @@ export function useExportBackup(): () => void {
 /** Banner shown when changes have not been exported for longer than the chosen interval. */
 export function BackupReminder() {
   const backup = useStore((s) => s.backup);
-  const hasProfiles = useStore((s) => s.profiles.length > 0);
+  const hasProfiles = useStore((s) => s.vault.length > 0);
   const snooze = useStore((s) => s.snoozeReminder);
   const exportBackup = useExportBackup();
   const days = reminderDueDays(backup);

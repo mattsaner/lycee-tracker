@@ -5,6 +5,7 @@ import { Home } from './features/home/Home';
 import { Maturite } from './features/maturite/Maturite';
 import { ProfileIndex, ProfileLayout } from './features/profile/ProfileLayout';
 import { ProfileForm } from './features/setup/ProfileForm';
+import { Unlock } from './features/unlock/Unlock';
 import { YearSummary } from './features/summary/YearSummary';
 import { YearNotes } from './features/year/YearNotes';
 
@@ -24,6 +25,7 @@ export function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/nouveau" element={<ProfileForm />} />
+          <Route path="/deverrouiller/:profileId" element={<Unlock />} />
           <Route path="/profil/:profileId/modifier" element={<ProfileForm />} />
           <Route path="/profil/:profileId" element={<ProfileLayout />}>
             <Route index element={<ProfileIndex />} />

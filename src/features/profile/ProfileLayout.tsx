@@ -3,7 +3,7 @@ import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } 
 import { LEVEL_LABELS, OC_LABELS, OS_LABELS } from '../../data/curriculum';
 import { ocMissing } from '../../domain/choices';
 import type { Level, Profile, SchoolYear } from '../../domain/types';
-import { useProfile, useStore } from '../../store/store';
+import { useEntry, useProfile, useStore } from '../../store/store';
 
 export interface ProfileContext {
   profile: Profile;
@@ -18,12 +18,19 @@ function nextLabel(label: string): string {
 export function ProfileLayout() {
   const { profileId, yearId } = useParams();
   const profile = useProfile(profileId);
-  const { addYear, deleteYear } = useStore();
+  const entry = useEntry(profileId);
+  const addYear = useStore((s) => s.addYear);
+  const deleteYear = useStore((s) => s.deleteYear);
   const navigate = useNavigate();
   const location = useLocation();
   const [adding, setAdding] = useState(false);
 
-  if (!profile) return <Navigate to="/" replace />;
+  if (!profile)
+    return entry ? (
+      <Navigate to={`/deverrouiller/${profileId}`} replace state={{ from: location.pathname }} />
+    ) : (
+      <Navigate to="/" replace />
+    );
   const year = profile.years.find((y) => y.id === yearId);
   const last = profile.years[profile.years.length - 1];
   const base = `/profil/${profile.id}`;
@@ -58,9 +65,18 @@ export function ProfileLayout() {
             {profile.choices.track === 'bilingue' && ' · Bilingue'}
           </p>
         </div>
-        <Link to={`${base}/modifier`} className="button small">
-          Modifier
-        </Link>
+        <div>
+          <Link to={`${base}/modifier`} className="button small">
+            Modifier
+          </Link>
+          <button
+            className="button small"
+            // Locking here would make this page redirect to the unlock screen; Home locks on arrival.
+            onClick={() => navigate('/', { state: { lock: profile.id } })}
+          >
+            🔒 Verrouiller
+          </button>
+        </div>
       </section>
 
       <div className="toolbar">
@@ -144,6 +160,6 @@ export function ProfileIndex() {
   const { profileId } = useParams();
   const profile = useProfile(profileId);
   const last = profile?.years[profile.years.length - 1];
-  if (!profile) return <Navigate to="/" replace />;
+  if (!profile) return <Navigate to="/" replace />; // ProfileLayout already redirects locked profiles
   return last ? <Navigate to={`annee/${last.id}`} replace /> : <Navigate to="maturite" replace />;
 }

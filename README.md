@@ -17,7 +17,12 @@ Suivi des notes pour les élèves du **Lycée cantonal de Porrentruy** (maturit�
 
 ## Données et confidentialité
 
-Pas de compte et pas de serveur : toutes les données restent dans le navigateur (`localStorage`). La page *Sauvegarde* permet d’exporter et d’importer un fichier JSON (pour changer d’appareil ou garder une copie). Un bandeau rappelle d’exporter quand des modifications n’ont pas été sauvegardées depuis un certain temps (chaque semaine par défaut ; réglable : jour, semaine, deux semaines, mois ou jamais). Ce fichier contient des notes personnelles, ne le publie pas.
+Pas de compte et pas de serveur : toutes les données restent dans le navigateur (`localStorage`), **chiffrées**.
+
+- Chaque profil a un **mot de passe obligatoire** (8 caractères minimum). Les notes sont chiffrées dans le navigateur (AES-GCM 256, clé dérivée du mot de passe par PBKDF2-SHA256, 600 000 itérations). Seul le prénom/pseudo reste lisible pour afficher la liste des profils.
+- La clé n’existe qu’en mémoire : le profil se reverrouille au rechargement de la page ou avec le bouton « Verrouiller ».
+- **Un mot de passe oublié ne peut pas être récupéré** : les notes sont alors illisibles (sauf sauvegarde exportée avec un mot de passe connu).
+- Les sauvegardes exportées restent chiffrées : on peut les stocker dans un cloud. La page *Sauvegarde* permet d’exporter et d’importer un fichier JSON (pour changer d’appareil ou garder une copie). Un bandeau rappelle d’exporter quand des modifications n’ont pas été sauvegardées depuis un certain temps (chaque semaine par défaut ; réglable : jour, semaine, deux semaines, mois ou jamais). Ce fichier contient des notes personnelles, ne le publie pas.
 
 ## Règles appliquées
 

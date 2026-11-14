@@ -1,49 +1,69 @@
 import { describe, expect, it } from 'vitest';
-import { annualResult } from '../domain/averages';
+import { open, WrongPasswordError } from '../crypto/vault';
 import { disciplinesFor } from '../data/curriculum';
+import { annualResult } from '../domain/averages';
+import type { Profile } from '../domain/types';
 import { parseBackup, toBackup } from './backup';
-import { loadProfiles, MIGRATIONS, SCHEMA_VERSION, sanitizeProfiles } from './schema';
+import { loadEntries, loadPayload, MIGRATIONS, SCHEMA_VERSION, sanitizeProfiles } from './schema';
 import { useStore } from './store';
 
 /** Every exported format ever released; each must keep importing without loss. */
 const fixtures = import.meta.glob<string>('./fixtures/*.json', { eager: true, query: '?raw', import: 'default' });
+const FIXTURE_PASSWORD = 'fixture-password';
+
+/** Checks the content shared by the fixtures (same profiles in every version). */
+function expectFixtureProfile(p: Profile) {
+  const year = p.years[0];
+  const composite = year.tests.find((t) => t.id === 't4')!;
+  expect(year.tests).toHaveLength(4);
+  expect(composite.parts).toHaveLength(2);
+  expect(composite.rounding).toBe('quarter');
+  expect(year.overrides).toEqual({ maths: 4.5 });
+  expect(p.maturite).toMatchObject({ exams: { francais: 4.5 }, schoolOverrides: { biologie: 5 }, tm: 5.5 });
+  const francais = disciplinesFor(p.choices, 1).find((d) => d.id === 'francais')!;
+  expect(annualResult(francais, year).raw).toBeCloseTo((4.5 + 5.25 * 2) / 3);
+}
 
 describe('data format', () => {
-  it('has a migration for every past version and a fixture for the current one', () => {
-    for (let v = 1; v < SCHEMA_VERSION; v++) expect(MIGRATIONS[v], `migration from v${v}`).toBeTypeOf('function');
+  it('has a migration for every past version and a fixture for each version', () => {
+    for (let v = 1; v < SCHEMA_VERSION; v++) {
+      expect(MIGRATIONS[v], `migration from v${v}`).toBeTypeOf('function');
+      expect(Object.keys(fixtures)).toContain(`./fixtures/backup-v${v}.json`);
+    }
     expect(Object.keys(fixtures)).toContain(`./fixtures/backup-v${SCHEMA_VERSION}.json`);
   });
 
   it.each(Object.entries(fixtures))('imports %s without warnings or loss', (_name, text) => {
-    const { profiles, warnings } = parseBackup(text);
-    const raw = JSON.parse(text).profiles;
+    const { entries, warnings } = parseBackup(text);
+    const raw = JSON.parse(text);
     expect(warnings).toEqual([]);
-    expect(profiles).toHaveLength(raw.length);
-    profiles.forEach((p, i) => {
-      expect(p.years).toHaveLength(raw[i].years.length);
-      p.years.forEach((y, j) => expect(y.tests).toHaveLength(raw[i].years[j].tests.length));
-    });
+    expect(entries).toHaveLength((raw.entries ?? raw.profiles).length);
   });
 
-  it('keeps grades, composed grades, overrides and maturité data of v1', () => {
-    const { profiles } = parseBackup(fixtures['./fixtures/backup-v1.json']);
-    const [p, bilingual] = profiles;
-    const year = p.years[0];
-    const composite = year.tests.find((t) => t.id === 't4')!;
-    expect(composite.parts).toHaveLength(2);
-    expect(composite.rounding).toBe('quarter');
-    expect(year.overrides).toEqual({ maths: 4.5 });
-    expect(p.maturite).toMatchObject({ exams: { francais: 4.5 }, schoolOverrides: { biologie: 5 }, tm: 5.5 });
-    const francais = disciplinesFor(p.choices, 1).find((d) => d.id === 'francais')!;
-    expect(annualResult(francais, year).raw).toBeCloseTo((4.5 + 5.25 * 2) / 3);
-    // OC not chosen yet stays undefined
-    expect(bilingual.choices.oc).toBeUndefined();
-    expect(bilingual.choices.bilingualExam).toBe('histoire');
+  it('turns v1 plain profiles into entries that need a password', () => {
+    const { entries } = parseBackup(fixtures['./fixtures/backup-v1.json']);
+    expect(entries.every((e) => e.legacy && !e.sealed)).toBe(true);
+    expectFixtureProfile(entries[0].legacy!);
+    expect(entries[1].legacy!.choices.oc).toBeUndefined();
+    expect(entries[1].legacy!.choices.bilingualExam).toBe('histoire');
+  });
+
+  it('decrypts v2 entries with the password, and only with it', async () => {
+    const { entries } = parseBackup(fixtures['./fixtures/backup-v2.json']);
+    const [sealed, legacy] = entries;
+    expect(sealed.sealed).toBeDefined();
+    expect(JSON.stringify(sealed)).not.toContain('Dissertation');
+    const { value } = await open(sealed.sealed!, FIXTURE_PASSWORD);
+    expectFixtureProfile(loadPayload(value, sealed.id));
+    await expect(open(sealed.sealed!, 'not-the-password')).rejects.toBeInstanceOf(WrongPasswordError);
+    expect(legacy.legacy?.name).toBe('Élève bilingue');
   });
 
   it('round-trips through export and import unchanged', () => {
-    const { profiles } = parseBackup(fixtures['./fixtures/backup-v1.json']);
-    expect(parseBackup(JSON.stringify(toBackup(profiles))).profiles).toEqual(profiles);
+    for (const text of Object.values(fixtures)) {
+      const { entries } = parseBackup(text);
+      expect(parseBackup(JSON.stringify(toBackup(entries))).entries).toEqual(entries);
+    }
   });
 
   it('repairs instead of rejecting, and reports what it changed', () => {
@@ -84,11 +104,21 @@ describe('data format', () => {
     expect(p.years[0].tests[0].id).toBeTruthy();
     expect(p.years[0].tests[1].parts).toHaveLength(1);
     expect(p.maturite).toEqual({ exams: {}, schoolOverrides: {}, tm: undefined });
-    expect(warnings.join(' ')).toMatch(/astronomie/);
-    expect(warnings.join(' ')).toMatch(/cuisine/);
-    expect(warnings.join(' ')).toMatch(/1 note\(s\) illisible/);
-    expect(warnings.join(' ')).toMatch(/1 année\(s\) illisible/);
-    expect(warnings.join(' ')).toMatch(/1 profil\(s\) illisible/);
+    const all = warnings.join(' ');
+    expect(all).toMatch(/astronomie/);
+    expect(all).toMatch(/cuisine/);
+    expect(all).toMatch(/1 note\(s\) illisible/);
+    expect(all).toMatch(/1 année\(s\) illisible/);
+    expect(all).toMatch(/1 profil\(s\) illisible/);
+  });
+
+  it('skips unreadable v2 entries with a warning', () => {
+    const { entries, warnings } = loadEntries(
+      [{ id: 'a', name: 'A', sealed: { v: 1, kdf: 'other' } }, { id: 'b', name: 'B' }, 'x'],
+      2,
+    );
+    expect(entries).toEqual([]);
+    expect(warnings.join(' ')).toMatch(/3 profil\(s\) illisible/);
   });
 
   it('replaces unsafe or duplicate ids, since ids end up in URLs', () => {
@@ -104,27 +134,29 @@ describe('data format', () => {
     expect(() => parseBackup('not json')).toThrow(/JSON/);
     expect(() => parseBackup('{"app":"other"}')).toThrow(/pas une sauvegarde/);
     expect(() =>
-      parseBackup(JSON.stringify({ app: 'lycee-tracker', schemaVersion: SCHEMA_VERSION + 1, profiles: [] })),
+      parseBackup(JSON.stringify({ app: 'lycee-tracker', schemaVersion: SCHEMA_VERSION + 1, entries: [] })),
     ).toThrow(/plus récente/);
-    expect(() => loadProfiles({}, SCHEMA_VERSION)).toThrow(/liste/);
+    expect(() => loadEntries({}, SCHEMA_VERSION)).toThrow(/liste/);
   });
 
-  it('loads browser data saved by an earlier release', async () => {
+  it('loads browser data saved by the v1 release as entries to protect', async () => {
     const { profiles } = JSON.parse(fixtures['./fixtures/backup-v1.json']);
-    // v1 storage written before the backup reminder existed: no `backup` key.
+    // v1 storage, written before the backup reminder and passwords existed.
+    localStorage.clear();
     localStorage.setItem('lycee-tracker', JSON.stringify({ state: { profiles }, version: 1 }));
     await useStore.persist.rehydrate();
     const state = useStore.getState();
-    expect(state.profiles).toHaveLength(2);
-    expect(state.profiles[0].years[0].tests).toHaveLength(4);
+    expect(state.vault).toHaveLength(2);
+    expect(state.vault[0].legacy?.years[0].tests).toHaveLength(4);
+    expect(state.profiles).toEqual([]);
     expect(state.backup.frequencyDays).toBe(7);
+    expect(Object.keys(localStorage).some((k) => k.startsWith('lycee-tracker:pre-v1:'))).toBe(true);
   });
 
   it('keeps unreadable browser data aside instead of overwriting it', async () => {
     localStorage.clear();
-    localStorage.setItem('lycee-tracker', JSON.stringify({ state: { profiles: 'broken' }, version: 1 }));
+    localStorage.setItem('lycee-tracker', JSON.stringify({ state: { vault: 'broken' }, version: SCHEMA_VERSION }));
     await useStore.persist.rehydrate();
-    const saved = Object.keys(localStorage).filter((k) => k.startsWith('lycee-tracker:unreadable:'));
-    expect(saved).toHaveLength(1);
+    expect(Object.keys(localStorage).filter((k) => k.startsWith('lycee-tracker:unreadable:'))).toHaveLength(1);
   });
 });

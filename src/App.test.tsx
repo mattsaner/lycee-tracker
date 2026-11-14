@@ -1,7 +1,18 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from './App';
-import { useStore } from './store/store';
+import type { Choices } from './domain/types';
+import { flushVault, useStore } from './store/store';
+
+const PASSWORD = 'secret-password';
+const choices: Choices = {
+  track: 'standard',
+  l2: 'allemand',
+  l3: 'anglais',
+  arts: 'musique',
+  os: 'bc',
+  oc: 'histoire',
+};
 
 function addTest(card: HTMLElement, grade: string, weight = '1') {
   fireEvent.change(within(card).getByLabelText('Nouvelle note'), { target: { value: grade } });
@@ -17,7 +28,7 @@ const card = (name: string) =>
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear();
-    useStore.setState({ profiles: [], backup: { frequencyDays: 7 } });
+    useStore.setState({ vault: [], profiles: [], backup: { frequencyDays: 7 } });
     window.location.hash = '#/';
   });
   afterEach(cleanup);
@@ -27,9 +38,18 @@ describe('App', () => {
     fireEvent.click(screen.getByText('+ Nouveau profil'));
     fireEvent.change(screen.getByLabelText('Prénom ou pseudo'), { target: { value: 'Léa' } });
     fireEvent.change(screen.getByLabelText(/^Option spécifique \(OS\)/), { target: { value: 'bc' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Créer le profil' }));
+    const create = screen.getByRole('button', { name: 'Créer le profil' }) as HTMLButtonElement;
+    // A password is mandatory
+    expect(create.disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('Mot de passe'), { target: { value: 'short' } });
+    expect(screen.getByText(/au moins 8 caractères/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Mot de passe'), { target: { value: PASSWORD } });
+    fireEvent.change(screen.getByLabelText('Confirmation'), { target: { value: PASSWORD } });
+    expect(create.disabled).toBe(false);
+    fireEvent.click(create);
 
     expect(await screen.findByRole('heading', { name: 'Léa' })).toBeTruthy();
+    await screen.findByText('Mathématiques', { selector: '.discipline-name' });
     // Science OS → 6 h of maths in 1re, OC not taught yet
     expect(within(card('Mathématiques')).getByText(/6 h/)).toBeTruthy();
     expect(screen.queryByText(/^OC /, { selector: '.discipline-name' })).toBeNull();
@@ -77,20 +97,15 @@ describe('App', () => {
     fireEvent.click(screen.getByText('Maturité'));
     expect(await screen.findByText('Travail de maturité')).toBeTruthy();
 
-    // Data persisted to localStorage
-    const saved = JSON.parse(localStorage.getItem('lycee-tracker')!);
-    expect(saved.state.profiles[0].years[0].tests).toHaveLength(5);
+    // Persisted encrypted: the grades never appear in the stored data
+    await act(flushVault);
+    const saved = localStorage.getItem('lycee-tracker')!;
+    expect(JSON.parse(saved).state.vault[0].sealed).toBeDefined();
+    expect(saved).not.toContain('Vocabulaire');
   });
 
-  it('shows the backup reminder for old unsaved changes and hides it when snoozed', () => {
-    useStore
-      .getState()
-      .addProfile(
-        'Léa',
-        { track: 'standard', l2: 'allemand', l3: 'anglais', arts: 'musique', os: 'bc', oc: 'histoire' },
-        1,
-        '2025-2026',
-      );
+  it('shows the backup reminder for old unsaved changes and hides it when snoozed', async () => {
+    await useStore.getState().createProfile('Léa', choices, 1, '2025-2026', PASSWORD);
     useStore.setState((s) => ({
       backup: { ...s.backup, unsavedSince: new Date(Date.now() - 10 * 86_400_000).toISOString() },
     }));
@@ -114,5 +129,25 @@ describe('App', () => {
     fireEvent.change(os, { target: { value: 'anglais' } });
     expect(os.value).toBe('anglais');
   });
-});
 
+  it('asks for the password to open a locked profile', async () => {
+    const p = await useStore.getState().createProfile('Léa', choices, 1, '2025-2026', PASSWORD);
+    useStore.getState().lock(p.id);
+    render(<App />);
+    expect(screen.getByText(/Verrouillé/)).toBeTruthy();
+
+    fireEvent.click(screen.getByText(/Léa/));
+    expect(await screen.findByRole('heading', { name: /🔒 Léa/ })).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Mot de passe'), { target: { value: 'wrong-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir' }));
+    expect(await screen.findByText('Mot de passe incorrect.')).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText('Mot de passe'), { target: { value: PASSWORD } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir' }));
+    expect(await screen.findByRole('heading', { name: 'Léa' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /Verrouiller/ }));
+    expect(await screen.findByText(/Verrouillé/)).toBeTruthy();
+    expect(useStore.getState().profiles).toEqual([]);
+  });
+});
