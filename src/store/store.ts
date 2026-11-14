@@ -1,13 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { overrideKey } from '../domain/averages';
+import { newId } from './id';
+import { loadProfiles, SCHEMA_VERSION } from './schema';
 import type { Choices, Level, Profile, SchoolYear, SubGrade, Test } from '../domain/types';
 
-export const SCHEMA_VERSION = 1;
+export { newId };
 
-export function newId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-}
+const STORAGE_KEY = 'lycee-tracker';
 
 /** Calendar label of the current school year (it starts in August). */
 export function currentSchoolYearLabel(date = new Date()): string {
@@ -170,13 +170,45 @@ export const useStore = create<State>()(
       };
     },
     {
-      name: 'lycee-tracker',
+      name: STORAGE_KEY,
       version: SCHEMA_VERSION,
       partialize: (s) => ({ profiles: s.profiles, backup: s.backup }),
-      // Future schema changes: migrate (persisted, version) => new state here.
+      // Same migration chain as imported files; keeps a raw copy of the old data first.
+      migrate: (persisted, version) => {
+        snapshot(`pre-v${version}`);
+        const p = (persisted ?? {}) as Partial<State>;
+        return {
+          profiles: loadProfiles(p.profiles ?? [], version).profiles,
+          backup: { frequencyDays: 7, ...p.backup },
+        };
+      },
+      // Repairs saved data on every load; unreadable data is kept aside instead of being overwritten.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<State>;
+        try {
+          return {
+            ...current,
+            profiles: loadProfiles(p.profiles ?? [], SCHEMA_VERSION).profiles,
+            backup: { ...current.backup, ...p.backup },
+          };
+        } catch {
+          snapshot('unreadable');
+          return current;
+        }
+      },
     },
   ),
 );
+
+/** Copies the raw saved data to a side key so a failed migration never destroys it. */
+function snapshot(reason: string): void {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) localStorage.setItem(`${STORAGE_KEY}:${reason}:${new Date().toISOString()}`, raw);
+  } catch {
+    // Storage full or unavailable: nothing more we can do.
+  }
+}
 
 export function useProfile(id: string | undefined): Profile | undefined {
   return useStore((s) => s.profiles.find((p) => p.id === id));

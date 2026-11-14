@@ -10,7 +10,7 @@ import {
   OS_LABELS,
 } from '../../data/curriculum';
 import { allowedL3, allowedOc, allowedOs, normalizeChoices, validateChoices } from '../../domain/choices';
-import type { Choices, Level } from '../../domain/types';
+import type { Choices, Level, OcId } from '../../domain/types';
 import { currentSchoolYearLabel, useProfile, useStore } from '../../store/store';
 
 const DEFAULT_CHOICES: Choices = {
@@ -19,7 +19,6 @@ const DEFAULT_CHOICES: Choices = {
   l3: 'anglais',
   arts: 'arts-visuels',
   os: 'espagnol',
-  oc: 'histoire',
 };
 
 function Select<T extends string>(props: {
@@ -157,13 +156,21 @@ export function ProfileForm() {
           labels={OS_LABELS}
           onChange={(os) => update({ os })}
         />
-        <Select
-          label="Option complémentaire (OC, dès la 2e)"
-          value={choices.oc}
-          options={allowedOc(choices)}
-          labels={OC_LABELS}
-          onChange={(oc) => update({ oc })}
-        />
+        <label className="field">
+          <span>Option complémentaire (OC, dès la 2e)</span>
+          <select
+            value={choices.oc ?? ''}
+            onChange={(e) => update({ oc: (e.target.value || undefined) as OcId | undefined })}
+          >
+            <option value="">Pas encore choisie</option>
+            {allowedOc(choices).map((o) => (
+              <option key={o} value={o}>
+                {OC_LABELS[o]}
+              </option>
+            ))}
+          </select>
+          <small className="muted">Le choix se fait pendant la 1re année ; tu pourras le compléter plus tard.</small>
+        </label>
         {choices.track === 'bilingue' && choices.bilingualExam && (
           <Select
             label="Examen de maturité en allemand"

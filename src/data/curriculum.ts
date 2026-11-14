@@ -163,13 +163,19 @@ const SPECS: DisciplineSpec[] = [
   },
   {
     id: 'oc',
-    name: (c) => `OC ${OC_LABELS[c.oc]}`,
+    name: (c) => (c.oc ? `OC ${OC_LABELS[c.oc]}` : 'OC (à choisir)'),
     kind: 'OC',
     hours: () => [0, 2, 2],
     // Bilingual students are examined in physique or histoire instead of the OC (412.351 art. 8 al. 1bis).
     maturite: (c) => (bilingual(c) ? 'school' : 'exam'),
   },
-  { id: 'eps', name: () => 'Éducation physique et sportive', kind: 'EPS', hours: () => [2, 2, 2], maturite: () => null },
+  {
+    id: 'eps',
+    name: () => 'Éducation physique et sportive',
+    kind: 'EPS',
+    hours: () => [2, 2, 2],
+    maturite: () => null,
+  },
 ];
 
 function build(spec: DisciplineSpec, c: Choices, level: Level): Discipline {
@@ -183,12 +189,18 @@ function build(spec: DisciplineSpec, c: Choices, level: Level): Discipline {
   };
 }
 
-/** Disciplines taught in the given year (weekly lessons > 0). All of them count for promotion (art. 14, 30). */
+/**
+ * Disciplines taught in the given year (weekly lessons > 0). All of them count for promotion (art. 14, 30).
+ * The OC is left out until it is chosen.
+ */
 export function disciplinesFor(c: Choices, level: Level): Discipline[] {
-  return SPECS.map((s) => build(s, c, level)).filter((d) => d.hours > 0);
+  return SPECS.map((s) => build(s, c, level)).filter((d) => d.hours > 0 && (d.id !== 'oc' || c.oc !== undefined));
 }
 
-/** Every discipline of the profile, with its maturité role, independent of the year. */
+/**
+ * Every discipline of the profile, with its maturité role, independent of the year. An OC not chosen
+ * yet stays in the list so the maturité shows it as missing.
+ */
 export function allDisciplines(c: Choices): Discipline[] {
   return SPECS.map((s) => build(s, c, 3));
 }

@@ -1,14 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { disciplinesFor, lastLevelTaught } from '../data/curriculum';
 import { annualResult, compositeValue, roundHalf, roundTo, semesterResult } from './averages';
-import { allowedOc, allowedOs, normalizeChoices, validateChoices } from './choices';
+import { allowedOc, allowedOs, normalizeChoices, ocMissing, validateChoices } from './choices';
 import { evaluateMaturite, maturiteGrade } from './maturite';
 import { evaluatePromotion } from './promotion';
 import { neededGrade } from './projection';
 import { checkRules } from './rules';
 import type { Choices, CompositeRounding, Profile, SchoolYear, Semester, Test } from './types';
 
-const choices: Choices = { track: 'standard', l2: 'allemand', l3: 'anglais', arts: 'musique', os: 'bc', oc: 'histoire' };
+const choices: Choices = {
+  track: 'standard',
+  l2: 'allemand',
+  l3: 'anglais',
+  arts: 'musique',
+  os: 'bc',
+  oc: 'histoire',
+};
 
 let n = 0;
 const test = (disciplineId: string, grade: number, semester: Semester = 1, extra: Partial<Test> = {}): Test => ({
@@ -267,7 +274,11 @@ describe('composed grades', () => {
   });
 
   it('is the equal-weight mean of its sub-grades, rounded as configured', () => {
-    const parts: [number, Semester][] = [[5, 1], [4.5, 1], [6, 1]];
+    const parts: [number, Semester][] = [
+      [5, 1],
+      [4.5, 1],
+      [6, 1],
+    ];
     expect(compositeValue(composed(parts))).toBe(5.2); // tenth by default
     expect(compositeValue(composed(parts, 1, 'quarter'))).toBe(5.25);
     expect(compositeValue(composed(parts, 1, 'none'))).toBeCloseTo(5.1667, 3);
@@ -276,14 +287,28 @@ describe('composed grades', () => {
 
   it('counts once in the year average with its own weight', () => {
     // Composed 5, 4.5, 6 → 5.2 (weight 1); test 4 (weight 2) → (5.2 + 8) / 3 = 4.4
-    const y = year(1, [composed([[5, 1], [4.5, 1], [6, 1]]), test('francais', 4, 1, { weight: 2 })]);
+    const y = year(1, [
+      composed([
+        [5, 1],
+        [4.5, 1],
+        [6, 1],
+      ]),
+      test('francais', 4, 1, { weight: 2 }),
+    ]);
     const a = annualResult(francais, y);
     expect(a.raw).toBeCloseTo(4.4);
     expect(a.value).toBe(4.5);
   });
 
   it('spans the year: all sub-grades for the year, each semester for its info average', () => {
-    const y = year(1, [composed([[4, 1], [5, 2], [6, 2]]), test('francais', 3, 1)]);
+    const y = year(1, [
+      composed([
+        [4, 1],
+        [5, 2],
+        [6, 2],
+      ]),
+      test('francais', 3, 1),
+    ]);
     // year: composed (4 + 5 + 6) / 3 = 5 → (5 + 3) / 2 = 4
     expect(annualResult(francais, y).raw).toBe(4);
     // S1: composed 4, test 3 → 3.5; S2: composed 5.5 only
@@ -298,6 +323,50 @@ describe('composed grades', () => {
 
   it('is taken into account by the projection', () => {
     // composed 3.5 (weight 1) → (3.5 + x) / 2 ≥ 3.75 → x ≥ 4
-    expect(neededGrade([composed([[3, 1], [4, 1]])], 4)).toEqual({ status: 'reachable', needed: 4 });
+    expect(
+      neededGrade(
+        [
+          composed([
+            [3, 1],
+            [4, 1],
+          ]),
+        ],
+        4,
+      ),
+    ).toEqual({ status: 'reachable', needed: 4 });
+  });
+});
+
+describe('OC not chosen yet', () => {
+  const { oc: _oc, ...noOc } = choices;
+
+  it('leaves the OC out of the year until chosen', () => {
+    expect(disciplinesFor(noOc, 2).some((d) => d.id === 'oc')).toBe(false);
+    expect(disciplinesFor(choices, 2).some((d) => d.id === 'oc')).toBe(true);
+  });
+
+  it('is valid, and flagged once the student reaches the 2nd year', () => {
+    expect(validateChoices(noOc)).toEqual([]);
+    expect(ocMissing(noOc, [1])).toBe(false);
+    expect(ocMissing(noOc, [1, 2])).toBe(true);
+    expect(ocMissing(choices, [1, 2])).toBe(false);
+  });
+
+  it('keeps the maturité incomplete without an OC', () => {
+    const p: Profile = {
+      id: 'p',
+      name: 'x',
+      choices: noOc,
+      years: [],
+      maturite: { exams: {}, schoolOverrides: {} },
+      createdAt: '',
+    };
+    const r = evaluateMaturite(p);
+    expect(r.rows.some((row) => row.id === 'oc')).toBe(true);
+    expect(r.complete).toBe(false);
+  });
+
+  it('drops an OC that becomes incompatible instead of picking another one', () => {
+    expect(normalizeChoices({ ...choices, oc: 'biologie', os: 'bc' }).oc).toBeUndefined();
   });
 });

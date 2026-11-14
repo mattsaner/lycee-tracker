@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { LEVEL_LABELS, OC_LABELS, OS_LABELS } from '../../data/curriculum';
+import { ocMissing } from '../../domain/choices';
 import type { Level, Profile, SchoolYear } from '../../domain/types';
 import { useProfile, useStore } from '../../store/store';
 
@@ -53,7 +54,7 @@ export function ProfileLayout() {
         <div>
           <h1>{profile.name}</h1>
           <p className="muted">
-            OS {OS_LABELS[profile.choices.os]} · OC {OC_LABELS[profile.choices.oc]}
+            OS {OS_LABELS[profile.choices.os]} · OC {profile.choices.oc ? OC_LABELS[profile.choices.oc] : 'à choisir'}
             {profile.choices.track === 'bilingue' && ' · Bilingue'}
           </p>
         </div>
@@ -110,6 +111,16 @@ export function ProfileLayout() {
           </button>
           <small className="muted">En cas de redoublement, ajoute à nouveau le même niveau.</small>
         </form>
+      )}
+
+      {ocMissing(
+        profile.choices,
+        profile.years.map((y) => y.level),
+      ) && (
+        <p className="notice">
+          L’option complémentaire commence en 2e année. <Link to={`${base}/modifier`}>Indique ton OC</Link> pour pouvoir
+          saisir ses notes.
+        </p>
       )}
 
       <nav className="tabs">

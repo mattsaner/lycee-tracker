@@ -27,7 +27,7 @@ export function Backup() {
     e.target.value = '';
     if (!file) return;
     try {
-      const incoming = parseBackup(await file.text());
+      const { profiles: incoming, warnings } = parseBackup(await file.text());
       const replaced = incoming.filter((p) => profiles.some((q) => q.id === p.id));
       if (
         replaced.length &&
@@ -35,7 +35,10 @@ export function Backup() {
       )
         return;
       importProfiles(incoming);
-      setMessage({ ok: true, text: `${incoming.length} profil(s) importé(s).` });
+      setMessage({
+        ok: true,
+        text: [`${incoming.length} profil(s) importé(s).`, ...warnings].join(' '),
+      });
     } catch (err) {
       setMessage({ ok: false, text: (err as Error).message });
     }

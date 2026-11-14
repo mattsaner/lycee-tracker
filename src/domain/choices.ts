@@ -31,7 +31,8 @@ export function allowedOc(c: Pick<Choices, 'os'>): OcId[] {
 
 export function validateChoices(c: Choices): string[] {
   const errors: string[] = [];
-  if (c.track === 'bilingue' && c.l2 !== 'allemand') errors.push('La filière bilingue implique l’allemand en langue 2.');
+  if (c.track === 'bilingue' && c.l2 !== 'allemand')
+    errors.push('La filière bilingue implique l’allemand en langue 2.');
   if (c.track === 'bilingue' && !c.bilingualExam)
     errors.push('Choisis la discipline examinée en allemand (physique ou histoire).');
   if (!allowedL3(c).includes(c.l3)) errors.push('La langue 3 doit être différente de la langue 2.');
@@ -39,8 +40,14 @@ export function validateChoices(c: Choices): string[] {
     errors.push('Une langue étudiée en discipline fondamentale ne peut pas être choisie comme option spécifique.');
   if (c.os === 'arts-visuels' && c.arts !== 'musique')
     errors.push('L’option spécifique arts visuels implique la musique comme discipline artistique.');
-  if (!allowedOc(c).includes(c.oc)) errors.push('Cette option complémentaire n’est pas compatible avec ton option spécifique.');
+  if (c.oc && !allowedOc(c).includes(c.oc))
+    errors.push('Cette option complémentaire n’est pas compatible avec ton option spécifique.');
   return errors;
+}
+
+/** True when the profile reached the 2nd year without choosing its OC. */
+export function ocMissing(c: Choices, levels: number[]): boolean {
+  return c.oc === undefined && levels.some((l) => l >= 2);
 }
 
 /** Brings a set of choices back to a valid state after one field changed. */
@@ -55,6 +62,6 @@ export function normalizeChoices(c: Choices): Choices {
   if (!allowedL3(next).includes(next.l3)) next.l3 = allowedL3(next)[0];
   if (!allowedOs(next).includes(next.os)) next.os = allowedOs(next)[0];
   if (next.os === 'arts-visuels') next.arts = 'musique';
-  if (!allowedOc(next).includes(next.oc)) next.oc = allowedOc(next)[0];
+  if (next.oc && !allowedOc(next).includes(next.oc)) delete next.oc;
   return next;
 }

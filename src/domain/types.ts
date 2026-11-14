@@ -37,7 +37,8 @@ export interface Choices {
   l3: L3Id;
   arts: ArtsId;
   os: OsId;
-  oc: OcId;
+  /** Chosen during the 1st year, taught from the 2nd; undefined until then. */
+  oc?: OcId;
   /** Bilingual track only: discipline examined in German instead of the OC. */
   bilingualExam?: BilingualExam;
 }

@@ -655,3 +655,10 @@ th {
   align-items: center;
   margin: 0;
 }
+
+.notice {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 0.6rem 1rem;
+  margin: 0 0 1rem;
+}

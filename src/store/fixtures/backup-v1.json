@@ -1,0 +1,49 @@
+{
+  "app": "lycee-tracker",
+  "schemaVersion": 1,
+  "exportedAt": "2026-11-14T16:00:00.000Z",
+  "profiles": [
+    {
+      "id": "fixture-profile-1",
+      "name": "Élève test",
+      "choices": { "track": "standard", "l2": "allemand", "l3": "anglais", "arts": "musique", "os": "bc", "oc": "histoire" },
+      "years": [
+        {
+          "id": "fixture-year-1",
+          "level": 1,
+          "label": "2025-2026",
+          "tests": [
+            { "id": "t1", "disciplineId": "francais", "semester": 1, "grade": 4.5, "weight": 1, "label": "Dissertation", "date": "2025-10-01" },
+            { "id": "t2", "disciplineId": "francais", "semester": 2, "grade": 5.25, "weight": 2 },
+            { "id": "t3", "disciplineId": "os", "branchId": "chimie", "semester": 1, "grade": 5.1, "weight": 1 },
+            {
+              "id": "t4",
+              "disciplineId": "l2",
+              "semester": 1,
+              "grade": 0,
+              "weight": 1,
+              "label": "Vocabulaire",
+              "rounding": "quarter",
+              "parts": [
+                { "id": "p1", "grade": 5, "semester": 1, "date": "2025-09-10" },
+                { "id": "p2", "grade": 4.5, "semester": 2 }
+              ]
+            }
+          ],
+          "overrides": { "maths": 4.5 }
+        },
+        { "id": "fixture-year-2", "level": 2, "label": "2026-2027", "tests": [], "overrides": {} }
+      ],
+      "maturite": { "exams": { "francais": 4.5 }, "schoolOverrides": { "biologie": 5 }, "tm": 5.5 },
+      "createdAt": "2025-08-20T10:00:00.000Z"
+    },
+    {
+      "id": "fixture-profile-2",
+      "name": "Élève bilingue",
+      "choices": { "track": "bilingue", "l2": "allemand", "l3": "latin", "arts": "arts-visuels", "os": "theatre", "bilingualExam": "histoire" },
+      "years": [{ "id": "fixture-year-3", "level": 1, "label": "2026-2027", "tests": [], "overrides": {} }],
+      "maturite": { "exams": {}, "schoolOverrides": {} },
+      "createdAt": "2026-08-20T10:00:00.000Z"
+    }
+  ]
+}

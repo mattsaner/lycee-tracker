@@ -6,7 +6,7 @@ Suivi des notes pour les élèves du **Lycée cantonal de Porrentruy** (maturit�
 
 ## Fonctionnalités
 
-- **Profil** : filière (maturité ou bilingue FR-DE), langue 2, langue 3, discipline artistique, option spécifique (OS) et option complémentaire (OC). Les règles de choix du lycée sont appliquées (incompatibilités OS/OC, langues, etc.).
+- **Profil** : filière (maturité ou bilingue FR-DE), langue 2, langue 3, discipline artistique, option spécifique (OS) et option complémentaire (OC, qui peut rester « pas encore choisie » pendant la 1re année). Les règles de choix du lycée sont appliquées (incompatibilités OS/OC, langues, etc.).
 - **Notes de tests** : note de 1 à 6 au dixième ou au quart de point, poids 1 par défaut et modifiable.
 - **Notes composées** : plusieurs petites notes (vocabulaire, quiz…) qui forment une seule note : moyenne simple des sous-notes, arrondie au dixième, au quart ou non arrondie, puis comptée une fois avec son propre poids. Les sous-notes peuvent s'étaler sur toute l'année.
 - **Moyennes** : la note de l’année est la moyenne pondérée de **tous les tests de l’année**, arrondie au demi-point (x.25 et x.75 vers le haut) ; les moyennes S1 et S2 sont indicatives. Pour les OS à plusieurs branches (biologie-chimie, physique-applications des maths), moyenne des branches pondérée par la dotation. La note annuelle réelle du bulletin peut être saisie et remplace la note calculée.
@@ -31,6 +31,8 @@ Pas de compte et pas de serveur : toutes les données restent dans le navigateur
 | Grille horaire (dotations par année, OS BC/PM, filière bilingue) | [grille-horaire-def.pdf](https://www.lycee.ch/images/documents/grille-horaire-def.pdf) |
 
 ⚠️ Outil **non officiel**. Les textes réglementaires consultés datent de 2015-2016 ; seuls le bulletin et les décisions du lycée font foi. La répartition des branches dans les OS biologie-chimie et physique-applications des maths n’est pas publiée : elles comptent à parts égales.
+
+Le format des données est versionné et migré automatiquement : une ancienne sauvegarde reste importable dans les versions suivantes (voir [docs/data-format.md](docs/data-format.md)).
 
 ## Mettre à jour le programme
 
