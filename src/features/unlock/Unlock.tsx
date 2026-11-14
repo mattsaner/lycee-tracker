@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { WrongPasswordError } from '../../crypto/vault';
 import { useEntry, useProfile, useStore } from '../../store/store';
 import { newPasswordProblem, PasswordFields } from '../../ui/PasswordFields';

@@ -1,4 +1,4 @@
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-router';
 import { evaluatePromotion } from '../../domain/promotion';
 import { fmt } from '../../ui/format';
 import { GradeBadge } from '../../ui/GradeField';

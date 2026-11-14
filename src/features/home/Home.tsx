@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { LEVEL_LABELS, OS_LABELS } from '../../data/curriculum';
 import { useStore } from '../../store/store';
 

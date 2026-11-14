@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import { LEVEL_LABELS, OC_LABELS, OS_LABELS } from '../../data/curriculum';
 import { ocMissing } from '../../domain/choices';
 import type { Level, Profile, SchoolYear } from '../../domain/types';

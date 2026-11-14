@@ -45,11 +45,14 @@ Tout le programme (disciplines, dotations, choix, rôle à la maturité) se trou
 
 ## Développement
 
+Node 22.22 ou plus récent est requis (`.nvmrc`).
+
 ```sh
+nvm use          # ou toute installation de Node ≥ 22.22
 npm install
 npm run dev      # http://localhost:5173/lycee-tracker/
 npm test         # tests des règles de calcul et de l'interface
 npm run build
 ```
 
-Stack : Vite, React, TypeScript, Zustand, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur `main` (`.github/workflows/deploy.yml`).
+Stack : Vite 8, React 19, React Router 8, TypeScript, Zustand, Vitest 5. Chaque push et pull request lance l’audit des dépendances, les tests et le build ; le déploiement sur GitHub Pages se fait depuis `main` (`.github/workflows/deploy.yml`).
