@@ -640,3 +640,18 @@ th {
   padding: 0.15rem 0.3rem;
   font-size: 0.85rem;
 }
+
+.reminder {
+  border: 1px solid var(--low);
+  background: var(--low-bg);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.reminder p {
+  margin: 0 0 0.5rem;
+}
+.reminder .actions {
+  align-items: center;
+  margin: 0;
+}

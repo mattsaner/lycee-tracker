@@ -5,16 +5,19 @@ import { useStore } from './store/store';
 
 function addTest(card: HTMLElement, grade: string, weight = '1') {
   fireEvent.change(within(card).getByLabelText('Nouvelle note'), { target: { value: grade } });
-  fireEvent.change(within(card).getByLabelText('Poids', { selector: '.add-test input' }), { target: { value: weight } });
+  fireEvent.change(within(card).getByLabelText('Poids', { selector: '.add-test input' }), {
+    target: { value: weight },
+  });
   fireEvent.click(within(card).getByRole('button', { name: 'Ajouter' }));
 }
 
-const card = (name: string) => screen.getByText(name, { selector: '.discipline-name' }).closest('details') as HTMLElement;
+const card = (name: string) =>
+  screen.getByText(name, { selector: '.discipline-name' }).closest('details') as HTMLElement;
 
 describe('App', () => {
   beforeEach(() => {
     localStorage.clear();
-    useStore.setState({ profiles: [] });
+    useStore.setState({ profiles: [], backup: { frequencyDays: 7 } });
     window.location.hash = '#/';
   });
   afterEach(cleanup);
@@ -77,5 +80,23 @@ describe('App', () => {
     // Data persisted to localStorage
     const saved = JSON.parse(localStorage.getItem('lycee-tracker')!);
     expect(saved.state.profiles[0].years[0].tests).toHaveLength(5);
+  });
+
+  it('shows the backup reminder for old unsaved changes and hides it when snoozed', () => {
+    useStore
+      .getState()
+      .addProfile(
+        'Léa',
+        { track: 'standard', l2: 'allemand', l3: 'anglais', arts: 'musique', os: 'bc', oc: 'histoire' },
+        1,
+        '2025-2026',
+      );
+    useStore.setState((s) => ({
+      backup: { ...s.backup, unsavedSince: new Date(Date.now() - 10 * 86_400_000).toISOString() },
+    }));
+    render(<App />);
+    expect(screen.getByText(/ne sont pas sauvegardées/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Plus tard' }));
+    expect(screen.queryByText(/ne sont pas sauvegardées/)).toBeNull();
   });
 });

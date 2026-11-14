@@ -1,5 +1,6 @@
 import { HashRouter, Link, Navigate, Route, Routes } from 'react-router-dom';
 import { Backup } from './features/backup/Backup';
+import { BackupReminder } from './features/backup/BackupReminder';
 import { Home } from './features/home/Home';
 import { Maturite } from './features/maturite/Maturite';
 import { ProfileIndex, ProfileLayout } from './features/profile/ProfileLayout';
@@ -19,6 +20,7 @@ export function App() {
         </nav>
       </header>
       <main className="container">
+        <BackupReminder />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/nouveau" element={<ProfileForm />} />

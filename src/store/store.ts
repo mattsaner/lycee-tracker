@@ -18,8 +18,24 @@ export function currentSchoolYearLabel(date = new Date()): string {
 type ProfilePatch = Partial<Pick<Profile, 'name' | 'choices'>>;
 type YearPatch = Partial<Pick<SchoolYear, 'level' | 'label'>>;
 
+/** Local backup reminder; never exported. */
+export interface BackupState {
+  /** Reminder interval in days; 0 disables it. */
+  frequencyDays: number;
+  /** First data change not covered by an export. */
+  unsavedSince?: string;
+  lastExportAt?: string;
+  snoozedUntil?: string;
+}
+
+const DAY = 24 * 60 * 60 * 1000;
+
 interface State {
   profiles: Profile[];
+  backup: BackupState;
+  markExported: () => void;
+  snoozeReminder: (days?: number) => void;
+  setReminderFrequency: (days: number) => void;
   addProfile: (name: string, choices: Choices, level: Level, label: string) => Profile;
   updateProfile: (id: string, patch: ProfilePatch) => void;
   deleteProfile: (id: string) => void;
@@ -30,7 +46,13 @@ interface State {
   updateTest: (profileId: string, yearId: string, testId: string, patch: Partial<Omit<Test, 'id'>>) => void;
   deleteTest: (profileId: string, yearId: string, testId: string) => void;
   addPart: (profileId: string, yearId: string, testId: string, part: Omit<SubGrade, 'id'>) => void;
-  updatePart: (profileId: string, yearId: string, testId: string, partId: string, patch: Partial<Omit<SubGrade, 'id'>>) => void;
+  updatePart: (
+    profileId: string,
+    yearId: string,
+    testId: string,
+    partId: string,
+    patch: Partial<Omit<SubGrade, 'id'>>,
+  ) => void;
   deletePart: (profileId: string, yearId: string, testId: string, partId: string) => void;
   setOverride: (profileId: string, yearId: string, disciplineId: string, grade: number | null) => void;
   setExam: (profileId: string, disciplineId: string, grade: number | null) => void;
@@ -49,8 +71,12 @@ function setKey(record: Record<string, number>, key: string, value: number | nul
 export const useStore = create<State>()(
   persist(
     (set) => {
+      // Every data change starts the "unsaved" period unless one is already running.
+      const changed = (s: State): Pick<State, 'backup'> => ({
+        backup: s.backup.unsavedSince ? s.backup : { ...s.backup, unsavedSince: new Date().toISOString() },
+      });
       const mapProfile = (id: string, fn: (p: Profile) => Profile) =>
-        set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? fn(p) : p)) }));
+        set((s) => ({ profiles: s.profiles.map((p) => (p.id === id ? fn(p) : p)), ...changed(s) }));
       const mapYear = (profileId: string, yearId: string, fn: (y: SchoolYear) => SchoolYear) =>
         mapProfile(profileId, (p) => ({ ...p, years: p.years.map((y) => (y.id === yearId ? fn(y) : y)) }));
       const mapParts = (profileId: string, yearId: string, testId: string, fn: (parts: SubGrade[]) => SubGrade[]) =>
@@ -61,6 +87,20 @@ export const useStore = create<State>()(
 
       return {
         profiles: [],
+        backup: { frequencyDays: 7 },
+
+        markExported: () =>
+          set((s) => ({
+            backup: {
+              ...s.backup,
+              unsavedSince: undefined,
+              snoozedUntil: undefined,
+              lastExportAt: new Date().toISOString(),
+            },
+          })),
+        snoozeReminder: (days = 1) =>
+          set((s) => ({ backup: { ...s.backup, snoozedUntil: new Date(Date.now() + days * DAY).toISOString() } })),
+        setReminderFrequency: (frequencyDays) => set((s) => ({ backup: { ...s.backup, frequencyDays } })),
 
         addProfile: (name, choices, level, label) => {
           const profile: Profile = {
@@ -71,11 +111,11 @@ export const useStore = create<State>()(
             maturite: { exams: {}, schoolOverrides: {} },
             createdAt: new Date().toISOString(),
           };
-          set((s) => ({ profiles: [...s.profiles, profile] }));
+          set((s) => ({ profiles: [...s.profiles, profile], ...changed(s) }));
           return profile;
         },
         updateProfile: (id, patch) => mapProfile(id, (p) => ({ ...p, ...patch })),
-        deleteProfile: (id) => set((s) => ({ profiles: s.profiles.filter((p) => p.id !== id) })),
+        deleteProfile: (id) => set((s) => ({ profiles: s.profiles.filter((p) => p.id !== id), ...changed(s) })),
 
         addYear: (profileId, level, label) => {
           const year: SchoolYear = { id: newId(), level, label, tests: [], overrides: {} };
@@ -125,14 +165,14 @@ export const useStore = create<State>()(
         importProfiles: (incoming) =>
           set((s) => {
             const ids = new Set(incoming.map((p) => p.id));
-            return { profiles: [...s.profiles.filter((p) => !ids.has(p.id)), ...incoming] };
+            return { profiles: [...s.profiles.filter((p) => !ids.has(p.id)), ...incoming], ...changed(s) };
           }),
       };
     },
     {
       name: 'lycee-tracker',
       version: SCHEMA_VERSION,
-      partialize: (s) => ({ profiles: s.profiles }),
+      partialize: (s) => ({ profiles: s.profiles, backup: s.backup }),
       // Future schema changes: migrate (persisted, version) => new state here.
     },
   ),
@@ -140,4 +180,12 @@ export const useStore = create<State>()(
 
 export function useProfile(id: string | undefined): Profile | undefined {
   return useStore((s) => s.profiles.find((p) => p.id === id));
+}
+
+/** Days since the oldest unsaved change when the reminder is due, else null. */
+export function reminderDueDays(b: BackupState, now = Date.now()): number | null {
+  if (!b.frequencyDays || !b.unsavedSince) return null;
+  if (b.snoozedUntil && now < Date.parse(b.snoozedUntil)) return null;
+  const days = Math.floor((now - Date.parse(b.unsavedSince)) / DAY);
+  return days >= b.frequencyDays ? days : null;
 }

@@ -17,7 +17,7 @@ Suivi des notes pour les élèves du **Lycée cantonal de Porrentruy** (maturit�
 
 ## Données et confidentialité
 
-Pas de compte et pas de serveur : toutes les données restent dans le navigateur (`localStorage`). La page *Sauvegarde* permet d’exporter et d’importer un fichier JSON (pour changer d’appareil ou garder une copie). Ce fichier contient des notes personnelles, ne le publie pas.
+Pas de compte et pas de serveur : toutes les données restent dans le navigateur (`localStorage`). La page *Sauvegarde* permet d’exporter et d’importer un fichier JSON (pour changer d’appareil ou garder une copie). Un bandeau rappelle d’exporter quand des modifications n’ont pas été sauvegardées depuis un certain temps (chaque semaine par défaut ; réglable : jour, semaine, deux semaines, mois ou jamais). Ce fichier contient des notes personnelles, ne le publie pas.
 
 ## Règles appliquées
 
