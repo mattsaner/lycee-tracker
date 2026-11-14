@@ -1,0 +1,202 @@
+import { useState, type FormEvent } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ARTS_LABELS,
+  BILINGUAL_EXAM_LABELS,
+  L2_LABELS,
+  L3_LABELS,
+  LEVEL_LABELS,
+  OC_LABELS,
+  OS_LABELS,
+} from '../../data/curriculum';
+import { allowedL3, allowedOc, allowedOs, normalizeChoices, validateChoices } from '../../domain/choices';
+import type { Choices, Level } from '../../domain/types';
+import { currentSchoolYearLabel, useProfile, useStore } from '../../store/store';
+
+const DEFAULT_CHOICES: Choices = {
+  track: 'standard',
+  l2: 'allemand',
+  l3: 'anglais',
+  arts: 'arts-visuels',
+  os: 'espagnol',
+  oc: 'histoire',
+};
+
+function Select<T extends string>(props: {
+  label: string;
+  value: T;
+  options: T[];
+  labels: Record<T, string>;
+  onChange: (v: T) => void;
+  hint?: string;
+}) {
+  return (
+    <label className="field">
+      <span>{props.label}</span>
+      <select value={props.value} onChange={(e) => props.onChange(e.target.value as T)}>
+        {props.options.map((o) => (
+          <option key={o} value={o}>
+            {props.labels[o]}
+          </option>
+        ))}
+      </select>
+      {props.hint && <small className="muted">{props.hint}</small>}
+    </label>
+  );
+}
+
+export function ProfileForm() {
+  const { profileId } = useParams();
+  const existing = useProfile(profileId);
+  const navigate = useNavigate();
+  const { addProfile, updateProfile, deleteProfile } = useStore();
+
+  const [name, setName] = useState(existing?.name ?? '');
+  const [choices, setChoices] = useState<Choices>(existing?.choices ?? DEFAULT_CHOICES);
+  const [level, setLevel] = useState<Level>(1);
+  const [label, setLabel] = useState(currentSchoolYearLabel());
+
+  if (profileId && !existing) return <p>Profil introuvable.</p>;
+
+  const update = (patch: Partial<Choices>) => setChoices((c) => normalizeChoices({ ...c, ...patch }));
+  const errors = validateChoices(choices);
+
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (errors.length || !name.trim()) return;
+    if (existing) {
+      updateProfile(existing.id, { name: name.trim(), choices });
+      navigate(`/profil/${existing.id}`);
+    } else {
+      const p = addProfile(name.trim(), choices, level, label.trim() || currentSchoolYearLabel());
+      navigate(`/profil/${p.id}`);
+    }
+  };
+
+  const remove = () => {
+    if (existing && confirm(`Supprimer le profil « ${existing.name} » et toutes ses notes ?`)) {
+      deleteProfile(existing.id);
+      navigate('/');
+    }
+  };
+
+  return (
+    <form className="card form" onSubmit={submit}>
+      <h1>{existing ? 'Modifier le profil' : 'Nouveau profil'}</h1>
+
+      <label className="field">
+        <span>Prénom ou pseudo</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} required maxLength={40} autoFocus />
+      </label>
+
+      {!existing && (
+        <div className="row">
+          <label className="field">
+            <span>Année au lycée</span>
+            <select value={level} onChange={(e) => setLevel(Number(e.target.value) as Level)}>
+              {([1, 2, 3] as Level[]).map((l) => (
+                <option key={l} value={l}>
+                  {LEVEL_LABELS[l]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Année scolaire</span>
+            <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="2025-2026" />
+          </label>
+        </div>
+      )}
+
+      <fieldset>
+        <legend>Filière</legend>
+        <div className="segmented">
+          {(['standard', 'bilingue'] as const).map((t) => (
+            <label key={t} className={choices.track === t ? 'active' : ''}>
+              <input type="radio" name="track" checked={choices.track === t} onChange={() => update({ track: t })} />
+              {t === 'standard' ? 'Maturité' : 'Maturité bilingue FR-DE'}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Langues et art</legend>
+        <div className="row">
+          <Select
+            label="Langue 2"
+            value={choices.l2}
+            options={choices.track === 'bilingue' ? ['allemand'] : ['allemand', 'italien']}
+            labels={L2_LABELS}
+            onChange={(l2) => update({ l2 })}
+          />
+          <Select
+            label="Langue 3"
+            value={choices.l3}
+            options={allowedL3(choices)}
+            labels={L3_LABELS}
+            onChange={(l3) => update({ l3 })}
+          />
+        </div>
+        <Select
+          label="Discipline artistique"
+          value={choices.arts}
+          options={choices.os === 'arts-visuels' ? ['musique'] : ['arts-visuels', 'musique']}
+          labels={ARTS_LABELS}
+          onChange={(arts) => update({ arts })}
+          hint={choices.os === 'arts-visuels' ? 'L’OS arts visuels implique la musique.' : undefined}
+        />
+      </fieldset>
+
+      <fieldset>
+        <legend>Options</legend>
+        <Select
+          label="Option spécifique (OS)"
+          value={choices.os}
+          options={allowedOs(choices)}
+          labels={OS_LABELS}
+          onChange={(os) => update({ os })}
+        />
+        <Select
+          label="Option complémentaire (OC, dès la 2e)"
+          value={choices.oc}
+          options={allowedOc(choices)}
+          labels={OC_LABELS}
+          onChange={(oc) => update({ oc })}
+        />
+        {choices.track === 'bilingue' && choices.bilingualExam && (
+          <Select
+            label="Examen de maturité en allemand"
+            value={choices.bilingualExam}
+            options={['physique', 'histoire']}
+            labels={BILINGUAL_EXAM_LABELS}
+            onChange={(bilingualExam) => update({ bilingualExam })}
+            hint="Remplace l’examen de l’option complémentaire."
+          />
+        )}
+      </fieldset>
+
+      {errors.length > 0 && (
+        <ul className="errors">
+          {errors.map((e) => (
+            <li key={e}>{e}</li>
+          ))}
+        </ul>
+      )}
+
+      <div className="actions">
+        <button type="submit" className="button primary" disabled={errors.length > 0 || !name.trim()}>
+          {existing ? 'Enregistrer' : 'Créer le profil'}
+        </button>
+        <button type="button" className="button" onClick={() => navigate(-1)}>
+          Annuler
+        </button>
+        {existing && (
+          <button type="button" className="button danger" onClick={remove}>
+            Supprimer le profil
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}

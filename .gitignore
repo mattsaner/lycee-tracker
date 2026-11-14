@@ -1,10 +1,9 @@
-# Personal data — never commit grades
-data/
+# Personal data exports — never commit grades
+/data/
+lycee-tracker-*.json
 *.db
 *.sqlite
 *.sqlite3
-*.csv
-*.json.local
 
 # Secrets
 .env
@@ -18,6 +17,5 @@ data/
 # Dependencies / builds
 node_modules/
 dist/
-build/
-__pycache__/
-.venv/
+coverage/
+*.tsbuildinfo
