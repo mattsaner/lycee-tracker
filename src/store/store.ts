@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { overrideKey } from '../domain/averages';
-import type { Choices, Level, Profile, SchoolYear, Semester, Test } from '../domain/types';
+import type { Choices, Level, Profile, SchoolYear, Test } from '../domain/types';
 
 export const SCHEMA_VERSION = 1;
 
@@ -29,7 +29,7 @@ interface State {
   addTest: (profileId: string, yearId: string, test: Omit<Test, 'id'>) => void;
   updateTest: (profileId: string, yearId: string, testId: string, patch: Partial<Omit<Test, 'id'>>) => void;
   deleteTest: (profileId: string, yearId: string, testId: string) => void;
-  setOverride: (profileId: string, yearId: string, disciplineId: string, semester: Semester, grade: number | null) => void;
+  setOverride: (profileId: string, yearId: string, disciplineId: string, grade: number | null) => void;
   setExam: (profileId: string, disciplineId: string, grade: number | null) => void;
   setSchoolOverride: (profileId: string, disciplineId: string, grade: number | null) => void;
   setTm: (profileId: string, grade: number | null) => void;
@@ -88,10 +88,10 @@ export const useStore = create<State>()(
         deleteTest: (profileId, yearId, testId) =>
           mapYear(profileId, yearId, (y) => ({ ...y, tests: y.tests.filter((t) => t.id !== testId) })),
 
-        setOverride: (profileId, yearId, disciplineId, semester, grade) =>
+        setOverride: (profileId, yearId, disciplineId, grade) =>
           mapYear(profileId, yearId, (y) => ({
             ...y,
-            overrides: setKey(y.overrides, overrideKey(disciplineId, semester), grade),
+            overrides: setKey(y.overrides, overrideKey(disciplineId), grade),
           })),
         setExam: (profileId, disciplineId, grade) =>
           mapProfile(profileId, (p) => ({

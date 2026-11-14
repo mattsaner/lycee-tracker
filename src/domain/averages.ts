@@ -27,19 +27,21 @@ export interface BranchResult {
   official: number | null;
 }
 
-export interface SemesterResult {
-  /** Unrounded average of the tests. */
+export interface PeriodResult {
+  /** Unrounded weighted average of the tests. */
   raw: number | null;
-  /** Bulletin grade: the student's override, else the raw average rounded to the half point. */
+  /** Average rounded to the half point (or the bulletin grade when entered). */
   official: number | null;
   overridden: boolean;
   branches?: BranchResult[];
 }
 
-export const overrideKey = (disciplineId: string, semester: Semester) => `${disciplineId}:${semester}`;
+/** Annual bulletin grade entered by the student, keyed by disciplineId. */
+export const overrideKey = (disciplineId: string) => disciplineId;
 
-export function testsFor(year: SchoolYear, disciplineId: string, semester: Semester): Test[] {
-  return year.tests.filter((t) => t.disciplineId === disciplineId && t.semester === semester);
+/** Tests of a discipline for one semester, or for the whole year when semester is omitted. */
+export function testsFor(year: SchoolYear, disciplineId: string, semester?: Semester): Test[] {
+  return year.tests.filter((t) => t.disciplineId === disciplineId && (semester === undefined || t.semester === semester));
 }
 
 /** Tests without a known branch go to the first branch. */
@@ -49,9 +51,7 @@ export function branchOf(discipline: Discipline, test: Test): string | undefined
   return branches.some((b) => b.id === test.branchId) ? test.branchId : branches[0].id;
 }
 
-export function semesterResult(discipline: Discipline, year: SchoolYear, semester: Semester): SemesterResult {
-  const tests = testsFor(year, discipline.id, semester);
-  const override = year.overrides[overrideKey(discipline.id, semester)];
+function periodResult(discipline: Discipline, tests: Test[], override?: number): PeriodResult {
   const overridden = override !== undefined;
 
   if (!discipline.branches?.length) {
@@ -78,19 +78,30 @@ export function semesterResult(discipline: Discipline, year: SchoolYear, semeste
   };
 }
 
-export interface AnnualResult {
-  s1: SemesterResult;
-  s2: SemesterResult;
-  /** Mean of the two semester grades (art. 30); not rounded. */
+/** Semester average: for information only, the annual grade uses every test of the year. */
+export function semesterResult(discipline: Discipline, year: SchoolYear, semester: Semester): PeriodResult {
+  return periodResult(discipline, testsFor(year, discipline.id, semester));
+}
+
+export interface AnnualResult extends PeriodResult {
+  s1: PeriodResult;
+  s2: PeriodResult;
+  /** Grade used for promotion: the official annual grade. */
   value: number | null;
-  /** True when only one semester has a grade so far. */
+  /** True while the 2nd semester has no test and no bulletin grade was entered. */
   provisional: boolean;
 }
 
+/** Annual grade: weighted average of all the tests of the year, rounded to the half point. */
 export function annualResult(discipline: Discipline, year: SchoolYear): AnnualResult {
+  const year_ = periodResult(discipline, testsFor(year, discipline.id), year.overrides[overrideKey(discipline.id)]);
   const s1 = semesterResult(discipline, year, 1);
   const s2 = semesterResult(discipline, year, 2);
-  const grades = [s1.official, s2.official].filter((g): g is number => g !== null);
-  const value = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
-  return { s1, s2, value, provisional: grades.length === 1 };
+  return {
+    ...year_,
+    s1,
+    s2,
+    value: year_.official,
+    provisional: !year_.overridden && year_.official !== null && s2.raw === null,
+  };
 }

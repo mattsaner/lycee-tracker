@@ -34,23 +34,22 @@ export function YearSummary() {
           <thead>
             <tr>
               <th>Discipline</th>
-              <th>S1</th>
-              <th>S2</th>
-              <th>Annuelle</th>
+              <th title="À titre indicatif">S1</th>
+              <th title="À titre indicatif">S2</th>
+              <th>Année</th>
             </tr>
           </thead>
           <tbody>
             {result.rows.map(({ discipline, annual }) => (
               <tr key={discipline.id}>
                 <td>{discipline.name}</td>
+                <td className="muted">{fmt(annual.s1.raw)}</td>
+                <td className="muted">{fmt(annual.s2.raw)}</td>
                 <td>
-                  <GradeBadge value={annual.s1.official} />
-                </td>
-                <td>
-                  <GradeBadge value={annual.s2.official} />
-                </td>
-                <td>
-                  <GradeBadge value={annual.value} title={annual.provisional ? 'Un seul semestre noté' : undefined} />
+                  <GradeBadge
+                    value={annual.value}
+                    title={annual.overridden ? 'Note du bulletin' : `Moyenne de l’année : ${fmt(annual.raw)}`}
+                  />
                   {annual.provisional && <sup className="muted">*</sup>}
                 </td>
               </tr>
@@ -58,8 +57,8 @@ export function YearSummary() {
           </tbody>
         </table>
         <p className="muted small">
-          La note annuelle est la moyenne des deux notes semestrielles (non arrondie). * Un seul semestre noté. Moyenne
-          générale indicative :{' '}
+          La note de l’année est la moyenne pondérée de tous les tests de l’année, arrondie au demi-point ; les
+          moyennes S1 et S2 sont indicatives. * Pas encore de note au 2e semestre. Moyenne générale indicative :{' '}
           {fmt(
             (() => {
               const values = result.rows.map((r) => r.annual.value).filter((v): v is number => v !== null);

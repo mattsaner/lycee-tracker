@@ -37,7 +37,7 @@ describe('App', () => {
     addTest(card('Français'), '4,5');
     addTest(card('Français'), '5.2', '2');
     // (4.5 + 10.4) / 3 = 4.97 → 5
-    expect(within(card('Français')).getByText('4.97')).toBeTruthy();
+    expect(within(card('Français')).getByText('S1 4.97')).toBeTruthy();
     expect(within(card('Français')).getByText('5', { selector: '.badge' })).toBeTruthy();
 
     addTest(card('Mathématiques'), '3');

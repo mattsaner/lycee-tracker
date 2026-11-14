@@ -60,7 +60,7 @@ export interface SchoolYear {
   /** Calendar label, e.g. "2025-2026". */
   label: string;
   tests: Test[];
-  /** Official bulletin grades entered by the student, keyed by `${disciplineId}:${semester}`. */
+  /** Annual bulletin grades entered by the student, keyed by disciplineId. */
   overrides: Record<string, number>;
 }
 

@@ -63,11 +63,12 @@ describe('semester and annual grades', () => {
     expect(semesterResult(francais, y, 1).official).toBe(4);
   });
 
-  it('lets the bulletin grade override the computed one', () => {
-    const y = year(1, [test('francais', 4.2)], { 'francais:1': 4.5 });
-    const r = semesterResult(francais, y, 1);
-    expect(r.official).toBe(4.5);
+  it('lets the annual bulletin grade override the computed one', () => {
+    const y = year(1, [test('francais', 4.2)], { francais: 4.5 });
+    const r = annualResult(francais, y);
+    expect(r.value).toBe(4.5);
     expect(r.overridden).toBe(true);
+    expect(r.provisional).toBe(false);
   });
 
   it('averages branch half-point grades for a multi-branch OS', () => {
@@ -81,17 +82,38 @@ describe('semester and annual grades', () => {
     expect(r.official).toBe(5);
   });
 
-  it('annual grade is the unrounded mean of the two semesters', () => {
-    const y = year(1, [test('francais', 4.5, 1), test('francais', 5, 2)]);
+  it('annual grade is the weighted mean of every test of the year, not of the semesters', () => {
+    // S1: 4 → semester 4; S2: 5, 5, 5 → semester 5. Mean of semesters would be 4.5.
+    const y = year(1, [test('francais', 4, 1), test('francais', 5, 2), test('francais', 5, 2), test('francais', 5, 2)]);
     const a = annualResult(francais, y);
-    expect(a.value).toBe(4.75);
+    expect(a.raw).toBe(4.75);
+    expect(a.value).toBe(5);
+    expect(a.s1.official).toBe(4);
+    expect(a.s2.official).toBe(5);
     expect(a.provisional).toBe(false);
   });
 
-  it('marks the annual grade provisional with one semester only', () => {
-    const a = annualResult(francais, year(1, [test('francais', 4.5, 1)]));
+  it('uses test weights across the year', () => {
+    const y = year(1, [test('francais', 3, 1, { weight: 2 }), test('francais', 6, 2)]);
+    expect(annualResult(francais, y).raw).toBe(4);
+  });
+
+  it('marks the annual grade provisional before any 2nd semester test', () => {
+    const a = annualResult(francais, year(1, [test('francais', 4.4, 1)]));
     expect(a.value).toBe(4.5);
     expect(a.provisional).toBe(true);
+  });
+
+  it('computes multi-branch annual grades from all the year tests per branch', () => {
+    const y = year(1, [
+      test('os', 4, 1, { branchId: 'biologie' }),
+      test('os', 5, 2, { branchId: 'biologie' }), // biologie 4.5
+      test('os', 6, 2, { branchId: 'chimie' }), // chimie 6
+    ]);
+    const a = annualResult(os, y);
+    expect(a.branches?.map((b) => b.official)).toEqual([4.5, 6]);
+    expect(a.raw).toBe(5.25);
+    expect(a.value).toBe(5.5);
   });
 });
 

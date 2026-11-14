@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { branchOf, overrideKey, semesterResult, testsFor } from '../../domain/averages';
+import { annualResult, branchOf, overrideKey, testsFor } from '../../domain/averages';
 import { neededGrade } from '../../domain/projection';
 import type { Discipline, SchoolYear, Semester } from '../../domain/types';
 import { useStore } from '../../store/store';
@@ -28,11 +28,14 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
   const [target, setTarget] = useState(4);
   const [error, setError] = useState('');
 
-  const result = semesterResult(discipline, year, semester);
+  const annual = annualResult(discipline, year);
+  const semesterInfo = semester === 1 ? annual.s1 : annual.s2;
   const tests = testsFor(year, discipline.id, semester);
   const branchName = (id?: string) => discipline.branches?.find((b) => b.id === id)?.name;
 
-  const projectionTests = discipline.branches ? tests.filter((t) => branchOf(discipline, t) === branchId) : tests;
+  // The annual grade uses every test of the year, so the projection does too.
+  const yearTests = testsFor(year, discipline.id);
+  const projectionTests = discipline.branches ? yearTests.filter((t) => branchOf(discipline, t) === branchId) : yearTests;
   const nextWeight = parseNumber(weight);
   const projection = neededGrade(projectionTests, target, nextWeight && nextWeight > 0 ? nextWeight : 1);
 
@@ -65,15 +68,22 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
           <small className="muted"> · {discipline.hours} h</small>
         </span>
         <span className="discipline-grades">
-          {result.raw !== null && !result.overridden && <small className="muted">{fmt(result.raw)}</small>}
-          <GradeBadge value={result.official} title={result.overridden ? 'Note du bulletin' : 'Note semestrielle calculée'} />
+          {semesterInfo.raw !== null && (
+            <small className="muted" title="Moyenne du semestre, à titre indicatif">
+              S{semester} {fmt(semesterInfo.raw)}
+            </small>
+          )}
+          <GradeBadge
+            value={annual.official}
+            title={annual.overridden ? 'Note annuelle du bulletin' : `Note annuelle calculée (${fmt(annual.raw)})`}
+          />
         </span>
       </summary>
 
       <div className="discipline-body">
-        {result.branches && (
+        {annual.branches && (
           <ul className="branches">
-            {result.branches.map((b) => (
+            {annual.branches.map((b) => (
               <li key={b.id}>
                 {b.name} <span className="muted">{fmt(b.raw)}</span> <GradeBadge value={b.official} />
               </li>
@@ -173,7 +183,7 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
                 </option>
               ))}
             </select>{' '}
-            {discipline.branches ? `en ${branchName(branchId)}` : 'au semestre'}
+            {discipline.branches ? `en ${branchName(branchId)} sur l’année` : 'sur l’année'}
             {' : '}
             {projection.status === 'secured' && <strong className="tone-good-text">déjà assuré 🎉</strong>}
             {projection.status === 'impossible' && (
@@ -187,12 +197,12 @@ export function DisciplineCard({ profileId, year, discipline, semester }: Props)
             )}
           </p>
           <label className="field inline">
-            <span>Note du bulletin</span>
+            <span>Note annuelle du bulletin</span>
             <GradeField
-              label="Note du bulletin"
-              value={year.overrides[overrideKey(discipline.id, semester)]}
-              placeholder={result.official !== null && !result.overridden ? fmt(result.official) : '–'}
-              onCommit={(v) => setOverride(profileId, year.id, discipline.id, semester, v)}
+              label="Note annuelle du bulletin"
+              value={year.overrides[overrideKey(discipline.id)]}
+              placeholder={annual.official !== null && !annual.overridden ? fmt(annual.official) : '–'}
+              onCommit={(v) => setOverride(profileId, year.id, discipline.id, v)}
             />
           </label>
         </div>
